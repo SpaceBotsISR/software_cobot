@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/socrob/space_cobot_ws/src/space_cobot_mpc_controller/cmake-build-debug/devel/setup.sh
