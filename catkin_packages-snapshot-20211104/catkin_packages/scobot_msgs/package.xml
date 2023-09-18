@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<package>
+  <name>scobot_msgs</name>
+  <version>0.1.0</version>
+  <description>
+    Messages and service for the interaction with manipulation nodes.
+  </description>
+  <license>GPLv3</license>
+
+  <maintainer email="filipe.mendes.rosa@gmail.com">Filipe Rosa</maintainer>
+  <author email="filipe.mendes.rosa@gmail.com">Filipe Rosa</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>message_generation</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+
+  <run_depend>message_runtime</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+</package>

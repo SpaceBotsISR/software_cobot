@@ -1,0 +1,55 @@
+
+The approach used for the motion control of the vehicle exploits its
+holonomic design by
+decoupling the translational and rotational modes. To do so, we first
+apply feedback linearisation~\cite{sastry99} to the translational part
+of~\eqref{eq:dynsys}:
+\begin{equation}
+  \label{eq:fctrl}
+    \left\{
+    \begin{split}
+      \dot{\bar{x}} &= \bar{v} \\
+      \dot{\bar{v}} &= \bar{p} \\
+      \bar{F} &= m \mathbf{R}^T \bar{p}
+    \end{split}
+  \right.
+\end{equation}
+and then design a feedback controller for $\bar{p}$. Since this
+dynamical system is second order, a PD controller is enough to ensure
+convergence:
+\begin{equation}
+  \label{eq:pctrl}
+  \begin{split}
+    \bar{p} &= -k_x \bar{e}_x -k_v \bar{e}_v \\
+    \bar{e}_x &= \bar{x} - \bar{x}_d \\
+    \bar{e}_v &= \bar{v} - \bar{v}_d \\
+  \end{split}
+\end{equation}
+where $\bar{x}_d$ and $\bar{v}_d$ are the desired position and
+velocity vectors in the inertial frame~$\mathcal{I}$, and $k_x$ and
+$k_v$ are the proportional and derivative gains of the PD controller.
+
+For the attitude control we follow the convergent $SO(3)$ controller
+proposed in~\cite{lee10} for the attitude of a quadrotor, negleting
+the Coriolis and the angular velocity reference in the expression for
+the torque, as suggested in~\cite{mahony12}:
+\begin{equation}
+  \label{eq:mctrl}
+  \begin{split}
+    \bar{M} &= -k_R\,\bar{e}_R - k_\omega\,\bar{e}_\omega \\
+    \bar{e}_R &= \frac{1}{2} S^{-1}( \mathbf{R}^T_d \mathbf{R} -
+    \mathbf{R}^T \mathbf{R}_d ) \\
+    \bar{e}_\omega &= \omega - \mathbf{R}^T \mathbf{R}_d\,\omega_d
+  \end{split}
+\end{equation}
+where $\mathbf{R}_d$ is the rotation matrix of the desired attitude,
+$\omega_d$ is the desired angular velocity vector, with $k_R$ and
+$k_\omega$ as controller gains. The $S^{-1}$ function performs the inverse
+operation as the one defined in~\eqref{eq:S}, that is, recovers
+the vector from a given skew-symmetric matrix.
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

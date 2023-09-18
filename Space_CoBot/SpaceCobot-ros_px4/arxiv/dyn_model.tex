@@ -1,0 +1,160 @@
+
+To derive the dynamical model of the vehicle, we start by modeling the
+force and torque vectors caused by a single propeller in the body
+frame denoted~$\mathcal{B}$, whose origin is coincident with the
+vehicle's center of mass (CoM).
+
+Consider a propeller $i$ whose motor is rigidly linked to the
+body frame, as depicted in Figure~\ref{fig:prop}.  This propeller will
+generate a force $\bar{F}_i$ and a torque $\bar{M}_i$ with respect to
+the CoM. While the former results directly from the
+propeller thrust,
+\begin{align}
+  \label{eq:Fi}
+  \bar{F}_i &= f_i \hat{u}_i \\
+  f_i &= K_1 u_i
+\end{align}
+where $u_i$ is the actuation signal and $f_i$ is the scalar thrust,
+the later has two components: the torque caused by the displaced force
+and the propeller reaction torque:
+\begin{align}
+  \label{eq:Mi}
+  \bar{M}_i &= \bar{r}_i\times\bar{F}_i - \tau_i \hat{u}_i \\
+  \tau_i &= w_i K_2 u_i
+\end{align}
+where $\times$ denotes vector cross product and $w_i$ is $-1$ or $1$ depending on whether the propeller rotates
+clockwise or anti-clockwise for a positive forward thrust $f_i>0$.
+The constants $K_1$ and $K_2$ model a simple linear relationship
+between the actuation and the scalar thrust force and reaction torque
+of the propeller. The actuation is often modeled as proportional to
+the square of the propeller speed of rotation~\cite{mahony12}.
+
+The relative position of the propeller, $\bar{r}_i$, orthogonal to the
+$Z$ axis, and the unit vector $\hat{u}_i$, aligned with the propeller
+axis, are uniquely defined by the angles $\theta_i$ and $\phi_i$, and can be
+easily obtained from geometrical reasoning:
+\begin{equation}
+  \bar{r}_i = \left(
+    \begin{array}{c}
+      d\cos(\theta_i) \\
+      d\sin(\theta_i) \\
+      0
+      \end{array}
+    \right)
+    \qquad
+    \hat{u}_i = \left(
+      \begin{array}{c}
+        \sin(\theta_i)\sin(\phi_i) \\
+        -\cos(\theta_i)\sin(\phi_i) \\
+        \cos(\phi_i)
+      \end{array}
+      \right)
+\end{equation}
+where $d=\|\bar{r}_i\|$ is the distance from the propeller to the CoM.
+Stacking together the resulting force $\bar{F}_i$ and torque
+$\bar{M}_i$, one can obtain the linear relation
+\begin{equation}
+  \label{eq:fm}
+  \left(
+    \begin{array}{c}
+      \bar{F}_i \\
+      \bar{M}_i
+    \end{array}
+  \right) = \bar{a}_i\,u_i
+\end{equation}
+where
+\begin{equation}
+  \begin{split}
+    \bar{a}_i  &= \left(
+      \begin{array}{c}
+        K_1 \hat{u}_i \\
+        K_1 \bar{r}_i \times \hat{u}_i - w_i K_2 \hat{u}_i
+      \end{array}
+    \right) \\
+    &= \left(
+      \begin{array}{c}
+        K_1 \sin(\theta_i)\sin(\phi_i) \\
+        -K_1 \cos(\theta_i)\sin(\phi_i) \\
+        K_1 \cos(\phi_i) \\
+        (K_1 d \cos(\phi_i) - w_i K_2 \sin(\phi_i))\sin(\theta_i) \\
+        -(K_1 d \cos(\phi_i) - w_i K_2 \sin(\phi_i))\cos(\theta_i) \\
+        -K_1 d \sin(\phi_i) - w_i K_2 \cos(\phi_i)
+      \end{array}
+    \right)
+    \end{split}
+\end{equation}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.6\linewidth]{prop.pdf}
+  \caption{Notation used for modeling a single propeller with respect
+    to the body frame~$\mathcal{B}$, centered on the vehicle's CoM.}
+  \label{fig:prop}
+\end{figure}
+
+For a vehicle with $N$ propellers, the resulting force and torque will
+be given by the sum of the contributions of each propeller, given with
+respect to the CoM, by~\eqref{eq:fm}. This sum can be put in matrix
+form as
+\begin{equation}
+  \label{eq:au}
+  \left(
+    \begin{array}{c}
+      \bar{F} \\
+      \bar{M}
+    \end{array}
+  \right) = \mathbf{A}\,\bar{u}
+\end{equation}
+where $\mathbf{A}=[\bar{a}_1 \cdots \bar{a}_N]$, hereby called
+\emph{actuation matrix}, and $\bar{u}=[u_1\cdots u_N]^T$, the
+actuation input vector. The crucial observation is that, if the
+actuation matrix $\mathbf{A}$ has at least rank 6, the six degrees of
+freedom of the force and torque combined can be decoupled by
+solving~\eqref{eq:au} with respect to the actuation~$\bar{u}$. A
+necessary (but not sufficient) condition for this to be true is to have at least 6
+propellers, as in the hexarotor design considered in this paper. Note
+that this matrix only depends on the vehicle's design parameters,
+defined by the angles $\{\theta_i\}$ and $\{\phi_i\}$, distance $d$,
+and the trust coefficients $K_1$, $K_2$, and $\{w_i\}$. However, we
+will defer the discussion about the properties of this matrix to the
+next section.
+
+The dynamical model of the vehicle, in the absence of gravity can be
+derived from the Newton and Euler equations of motion, similarly
+to~\cite{mahony12}. Let us denote the position and velocity of the
+body frame $\mathcal{B}$ with respect to the inertial frame
+$\mathcal{I}$ as $\bar{x}$ and $\bar{v}$, the rotation matrix of frame
+$\mathcal{B}$ with respect to $\mathcal{I}$ as $\mathbf{R}$, and the
+angular velocity of the vehicle in the body frame $\mathcal{B}$ as
+$\bar{\omega}$. Then,
+\begin{equation}
+  \label{eq:dynsys}
+  \left\{
+    \begin{aligned}
+      \dot{\bar{x}} &= \bar{v} \\
+      m \dot{\bar{v}} &= \mathbf{R} \bar{F} \\
+      \dot{\mathbf{R}} &= \mathbf{R}\,\mathbf{S}(\bar{\omega}) \\
+      \mathbf{J} \dot{\bar{\omega}} &= \bar{M} - \bar{\omega}\times\mathbf{J} \bar{\omega}
+    \end{aligned}
+  \right.
+\end{equation}
+where the constants $m$ and $\mathbf{J}$
+are the vehicle's mass and moment of inertia, while
+$\mathbf{S}(\bar{\omega})$ is the skew-symmetric matrix defined by
+\begin{equation}
+  \label{eq:S}
+  \mathbf{S}(\bar{\omega}) =
+  \left[
+    \begin{array}{ccc}
+      0 & -\omega_z & \omega_y \\
+      \omega_z & 0 & -\omega_x \\
+      -\omega_y & \omega_x & 0 \\
+    \end{array}
+  \right]
+\end{equation}
+for $\bar{\omega}=[\omega_x\:\omega_y\:\omega_z]^T$.
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

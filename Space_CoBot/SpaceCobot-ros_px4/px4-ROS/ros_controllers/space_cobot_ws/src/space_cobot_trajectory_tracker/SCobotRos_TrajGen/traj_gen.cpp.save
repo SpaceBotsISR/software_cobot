@@ -1,0 +1,320 @@
+#include <iostream>
+#include "ros/ros.h"
+#include <vector>
+#include <opencv2/opencv.hpp>
+#include <eigen3/Eigen/Geometry>
+#include <cmath>
+
+
+
+
+using namespace std;
+#define PI 3.14159
+
+struct traj_struct {
+    Eigen::Vector3d xd;
+    Eigen::Vector3d vd;
+    Eigen::Matrix3d Rd;
+    Eigen::Vector3d ori;
+    Eigen::Vector3d Od;
+
+};
+
+
+double deg2rad(double deg){
+    return deg*(PI/180);
+}
+
+double rad2deg(double rad){
+    return rad*(180/PI);
+}
+///get_norm is not needed as you can directly use the Rodrigues formula from openCV
+double get_norm(vector<double> num){
+    return sqrt(num[0]*num[0] + num[1]*num[1] + num[2]*num[2]);
+}
+
+void expr(vector<double> omega, Eigen::Matrix3d& Rd, traj_struct&  tempp){
+    double n = get_norm(omega);
+    cv::Mat cvRd(3, 3, CV_32FC1);
+
+    ///if n=0 then Rd = Identity matrix
+    if(n==0) {
+        for (int i = 0; i < 3; i++) {
+            tempp.ori[i] = 0;
+            for (int j = 0; j < 3; j++) {
+                if (i == j)
+                    Rd(i,j) = 1;
+                else
+                    Rd(i,j) = 0;
+
+            }
+        }
+    }
+    /// n!=0 then set it using Rodrigues formula
+    else{
+        cv::Rodrigues(omega, cvRd);
+        for(int i=0; i<3; i++){
+            tempp.ori[i] = omega[i];
+            for(int j=0; j<3; j++) {
+                Rd(i,j) = cvRd.ptr<float>(i)[j];
+                tempp.Rd(i,j) = Rd(i,j);
+            }
+        }
+
+    }
+
+}
+
+//need to declare a default TRAJ1 as in the V-REP-Roque code
+void gen_from_traj(double waypoints[9][7], vector<double>& xd, vector<double>& vd, Eigen::Matrix3d Rd, vector<double>& Od, vector<traj_struct>& out){
+
+    ///Need to find better ways to find the number of rows!!!!!!!!!!!!!!!!!!!!1----- THIS IS WRONG
+    //int num_rows = sizeof(waypoints)/sizeof(waypoints[0]);
+    //cout<<"num_rows: "<<num_rows<<endl;
+    int num_rows =9;
+    vector<double> pi(6), pf(6), xi(3), oi(3), xf(3), of(3), temp_oi(3);
+    double tt, ti, tf;
+
+    traj_struct res;
+
+
+
+    double T = 0.01;
+
+    ///So what we are doing here is for every waypoint, we divide it into many parts given by tt/T and for each one of them we generate xd, vd, Rd, Od and give it add it to the vector of struct.
+    for(int i=0; i<num_rows -1; i++ ){
+        ti = waypoints[i][0];
+        tf = waypoints[i+1][0];
+        tt= tf - ti;
+
+        ///assigning values to the pose, position and orientation
+        for(int j=0; j<6; j++){
+            pi[j] = waypoints[i][j+1];
+            pf[j] = waypoints[i+1][j+1];
+        }
+
+        for(int j=0; j<3; j++){
+            xi[j] = pi[j];
+            xf[j] = pf[j];
+            oi[j] = pi[j+3];
+            of[j] = pf[j+3];
+
+        }
+
+        ///Print all the values just to check
+        ///
+        ///
+        ///Here is where all the action is: The time between next waypoint and the current waypoint  (say tt) is broken into tt/T segments, for each of which we calculate
+        for(double t=0; t<tt; t=t+T){
+
+            ///performing the algebraic operations on the vectors
+            for(int k=0; k<3; k++){
+                xd[k] = xi[k] + (xf[k] -xi[k])*t/tt;
+                res.xd[k] = xd[k];
+                vd[k] = (xf[k] - xi[k])/tt;
+                res.vd[k] = vd[k];
+                Od[k] = (of[k] - oi[k])/tt;
+                res.Od[k] = Od[k];
+                temp_oi[k] = oi[k] + (of[k] - oi[k])*t/tt;
+            }
+
+            expr(temp_oi, Rd, res);
+            out.push_back(res);
+
+        }
+        //cout<<"So this went okay!"<<endl;
+
+    }
+}
+
+///The Eigen Version
+
+
+int main(int argc, char** argv) {
+
+    ros::init(argc, argv, "traj_gen");
+    ros::NodeHandle nh;
+    //cout<<"CHECKPOINT 1"<<endl;
+
+    //Publishing and Subscribing
+
+    ros::Rate rate(50);
+    double time_traj = 5;
+    double stop_time = 5;
+    double Traj[4];
+    //cout<<"CHECKPOINT 2"<<endl;
+
+    ///This may be the waypoints for the video... not sure! check!!!
+    ///This is for time_traj=5----> if its something else- -change it!!!!
+    ///Solo holonomic waypoints
+    /*double waypoints[13][7]= {
+            {0, 0, 0, 0.1, 0, 0, 0},
+            {5, 0, 0, 1, 0, 0, 0},
+            {10, 1, 0, 1, deg2rad(0), 0, 0},
+            {15, 1, 1, 1, deg2rad(0), 0, 0},
+            {20, 1, 0, 1, deg2rad(90), 0, 0},
+            {25, 2, 0, 1, 0, deg2rad(90), 0},
+            {30, 1, 1, 1, 0, 0, deg2rad(90)},
+            {35, 1, 1, 0.5, 0, 0, 0},
+            {40, 1, 1, 0.1, 0, 0, 0}
+    };*/
+    ///solo narrow passage waypoints
+    ///this has time_Traj =2.5;
+    /*double waypoints[11][7] = {
+            {0, 0,0,0.1, 0,0,0},
+            {2.5, 0,0,0.5, 0,0,0},
+            {5, 0,0.5,0.5, 0,deg2rad(90),0},
+            {7.5, 0,1,0.5, 0,deg2rad(90),0},
+            {10, 0,2.15,0.25, deg2rad(90),0,0},
+            {12.5, 0.1,2.15,0.25, deg2rad(90),deg2rad(0),0},
+            {15, 1,2.15,0.25, deg2rad(90),deg2rad(0),0},
+            {17.5, 1,2.15,2.15, deg2rad(0),deg2rad(0),0},
+            {20, 0.5,2.15,2.15, deg2rad(0),deg2rad(0),0},
+            {22.5, 0,2.15,2.2, deg2rad(0),deg2rad(0),0},
+            {25, 0.1,2.2,2.2, deg2rad(0),deg2rad(0),0}
+    };*/
+    //waypoints for the jounral  --->time_traj=2.5
+    //time_traj=5;
+    /*double waypoints[13][7] = {
+            {time_traj*0, 0,0,0, 0,0,0},
+            {time_traj*1, 0,0,0, 0,deg2rad(90),0},
+            {time_traj*2, 0,0,0, deg2rad(-90), deg2rad(90), deg2rad(-180)},
+            {time_traj*3, 0,0,0, 0, 0, deg2rad(-90)},
+            {time_traj*4, 0,0,0, 0, deg2rad(-90), deg2rad(-90)},
+            {time_traj*5, 0,0,0, deg2rad(-180), 0, deg2rad(90)},
+            {time_traj*6, 0,0,0, deg2rad(-90), 0, deg2rad(90)},
+            {time_traj*7, 0,0,0, deg2rad(-90),deg2rad(90), deg2rad(90)},
+            {time_traj*8, 0,0,0, 0,0, deg2rad(-180)},
+            {time_traj*9, 0,0,0, deg2rad(-90), 0, deg2rad(-180)},
+            {time_traj*10, 0,0,0, deg2rad(-90), 0, deg2rad(-90)},
+            {time_traj*11, 0,0,0, deg2rad(-90), 0, 0},
+            {time_traj*12, 0,0,0, 0,0,0},
+    };*/
+     time_traj= 20;
+   /* double waypoints[9][7] = {
+            {time_traj*0, 1.15, 0, 1.5, 		 0,0,0},
+            {time_traj*1, 1.15, 0, 2.5,		 0,deg2rad(90),0},
+            {time_traj*2, 2.15, 0, 2.5,		 deg2rad(-90), deg2rad(90), deg2rad(-180)},
+            {time_traj*3, 2.15, 0, 3.5, 		 0, 0, deg2rad(-90)},
+            {time_traj*4, 1.15, 0, 3.5, 		 0, deg2rad(-90), deg2rad(-90)},
+            {time_traj*5, 1.15, 0, 4.5, 		 deg2rad(-180), 0, deg2rad(90)},
+            {time_traj*6, 2.15, 0, 4.5, 		 deg2rad(-90), 0, deg2rad(90)},
+            {time_traj*7, 2.15, 0, 4.5, 		 deg2rad(-90),0, deg2rad(90)},
+    };*/
+
+    double waypoints[9][7] = {
+            {time_traj*0, 1.15, 0.43,  1.5, 	0,0,0},
+            {time_traj*1, 1.15, 0.43,  3, 	0,deg2rad(90),0},
+            {time_traj*2, 1.15, 0.43,  4.5, 	deg2rad(-90), deg2rad(90), deg2rad(-180)},
+            {time_traj*3, 2.35,0.43,   4.5, 	deg2rad(-90)},
+            {time_traj*4, 2.35,0.43,   3, 	0, deg2rad(-90), deg2rad(-90)},
+            {time_traj*5, 2.35, 0.43,  1.5, 	deg2rad(-180), 0, deg2rad(90)},
+            {time_traj*6, 1.15,   0.43,  1.5, 	deg2rad(-90), 0, deg2rad(90)},
+            {time_traj*7, 1.15, 0.43,  1.5, 	deg2rad(-90),0, deg2rad(90)},
+    };
+
+
+    for(int i=0; i<9; i++) {
+        for (int j = 0; j < 7; j++)
+            cout << waypoints[i][j] << " ";
+        cout<<endl;
+    }
+    //cout<<"CHECKPOINT 3"<<endl;
+
+    vector<double> xd(3), vd(3), Od(3);
+    Eigen::Matrix3d Rd;
+    vector<traj_struct> out;
+    //cout<<"CHECKPOINT 4"<<endl;
+
+    gen_from_traj(waypoints, xd, vd, Rd, Od, out);
+
+    //cout<<"CHECKPOINT 5"<<endl;
+
+
+    ros::Time start_time = ros::Time::now();
+    double step = 0.01;
+    vector<double> des_orientation_rpy(3);
+    vector<double> des_position(3);
+    nh.param<vector<double> >("desired_orientation_rpy", des_orientation_rpy);
+    nh.param<vector<double> >("desired_position", des_position);
+    //cout<<"CHECKPOINT 6"<<endl;
+
+    while(ros::ok()) {
+        ///Main Loop
+        ///declaring important variables
+        //cout<<"CHECKPOINT 7"<<endl;
+
+        vector<double> refpos(3), refvel(3), OmegaDes(3);
+        Eigen::Matrix3d refori;
+
+
+        //cout<<"CHECKPOINT 8"<<endl;
+
+        ///Get exact time not just secs---------------------------!!!!!!!!!!!!!!!!!!!!!!!!!!
+        double time_= ros::Time::now().toSec() - start_time.toSec();
+        int ii= int(round(time_/step));
+        cout<<"ii: "<<ii<<endl;
+        //cout<<"out.size -1: "<<out.size()-1<<endl;
+
+
+        //cout<<"CHECKPOINT 9"<<endl;
+
+        if (0<=ii<=out.size()-1){
+
+            //cout<<"Inside 1st if condition"<<endl;
+            for(int i=0; i<3; i++){
+                refpos[i] = out[ii].xd[i];
+                refvel[i] = out[ii].vd[i];
+                OmegaDes[i] = out[ii].Od[i];
+            }
+
+            //cout<<"Assigning values to refpos, refvel, OmegaDes Succesful"<<endl;
+
+
+            for(int i=0; i<3; i++){
+                for(int j=0; j<3; j++)
+                    refori(i,j) = out[ii].Rd(i,j);
+            }
+
+            //cout<<"Assigning values to refori successful"<<endl;
+
+        }
+
+        else{
+            unsigned long int last_val = out.size() -1;
+
+            for(int i=0; i<3; i++){
+                refpos[i] = out[last_val].xd[i];
+                refvel[i] = 0;
+                OmegaDes[i] = 0;
+
+            }
+
+            for(int i=0; i<3; i++){
+                for(int j=0; j<3; j++)
+                    refori(i,j) = out[last_val].Rd(i,j);
+            }
+
+        }
+
+        ///set the rosparam for desired_orientation_rpy
+        for(int i=0; i<3; i++)
+            des_orientation_rpy[i] = rad2deg(out[ii].ori[i]);
+
+        ///set the rosparam for desired_position
+        for(int i = 0; i<3; i++)
+            des_position[i] = out[ii].xd[i];
+
+        nh.setParam("desired_orientation_rpy", des_orientation_rpy );
+        nh.setParam("desired_position", des_position);
+        cout<<"des_orientation_rpy:  "<<des_orientation_rpy[0]<<" "<<des_orientation_rpy[1]<<" "<<des_orientation_rpy[2]<<endl;
+        cout<<"xd: "<<out[ii].xd[0]<<" "<<out[ii].xd[1]<<" "<<out[ii].xd[2]<<endl;
+
+
+        ros::spinOnce();
+        rate.sleep();
+    }
+
+    return 0;
+
+}
