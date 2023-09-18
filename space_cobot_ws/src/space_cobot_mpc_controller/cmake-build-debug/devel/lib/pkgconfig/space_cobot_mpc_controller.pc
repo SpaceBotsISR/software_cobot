@@ -1,8 +1,0 @@
-prefix=/home/socrob/space_cobot_ws/src/space_cobot_mpc_controller/cmake-build-debug/devel
-
-Name: space_cobot_mpc_controller
-Description: Description of space_cobot_mpc_controller
-Version: 0.0.0
-Cflags: -I/home/socrob/space_cobot_ws/src/space_cobot_mpc_controller/cmake-build-debug/devel/include -I/home/socrob/space_cobot_ws/src/space_cobot_mpc_controller/matlab_export -I/home/socrob/space_cobot_ws/src/space_cobot_mpc_controller/matlab_export/MPC_export/qpoases/INCLUDE -I/home/socrob/space_cobot_ws/src/space_cobot_mpc_controller/matlab_export/MPC_export/qpoases/INCLUDE/EXTRAS -I/home/socrob/space_cobot_ws/src/space_cobot_mpc_controller/matlab_export/MPC_export/qpoases/SRC
-Libs: -L/home/socrob/space_cobot_ws/src/space_cobot_mpc_controller/cmake-build-debug/devel/lib -lspace_cobot_mpc_controller
-Requires: roscpp rospy std_msgs message_generation message_runtime tf
