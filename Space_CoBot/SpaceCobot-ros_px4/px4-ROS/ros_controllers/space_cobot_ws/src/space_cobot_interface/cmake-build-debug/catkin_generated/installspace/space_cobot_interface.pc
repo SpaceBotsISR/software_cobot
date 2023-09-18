@@ -1,0 +1,8 @@
+prefix=/usr/local
+
+Name: space_cobot_interface
+Description: Description of space_cobot_interface
+Version: 0.0.0
+Cflags: -I/usr/local/include
+Libs: -L/usr/local/lib -lspace_cobot_interface
+Requires: geometry_msgs message_generation message_runtime roscpp rospy sensor_msgs std_msgs tf

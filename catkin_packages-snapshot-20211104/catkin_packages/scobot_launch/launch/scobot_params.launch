@@ -1,0 +1,9 @@
+<launch>
+
+  <!-- set a /global_example parameter -->
+  <!--param name="global_example" value="global value" /-->
+
+  <rosparam command="load" file="scobot_config.yaml" />
+
+  
+</launch>
