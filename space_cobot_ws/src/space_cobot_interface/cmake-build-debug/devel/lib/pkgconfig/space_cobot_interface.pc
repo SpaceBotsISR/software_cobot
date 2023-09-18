@@ -1,8 +1,0 @@
-prefix=/home/socrob/space_cobot_ws/src/space_cobot_interface/cmake-build-debug/devel
-
-Name: space_cobot_interface
-Description: Description of space_cobot_interface
-Version: 0.0.0
-Cflags: -I/home/socrob/space_cobot_ws/src/space_cobot_interface/cmake-build-debug/devel/include -I/home/socrob/space_cobot_ws/src/space_cobot_interface/include
-Libs: -L/home/socrob/space_cobot_ws/src/space_cobot_interface/cmake-build-debug/devel/lib -lspace_cobot_interface
-Requires: geometry_msgs message_generation message_runtime roscpp rospy sensor_msgs std_msgs tf
