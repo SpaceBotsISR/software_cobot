@@ -1,1 +1,0 @@
-IJCAI paper on concept.
