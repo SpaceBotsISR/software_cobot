@@ -1,0 +1,83 @@
+
+Multirotor vehicles have recently gained widespread use in various
+application areas, such as transportation, surveillance, and even
+entertainment. These platforms are mechanically simple and typically
+lightweight, resulting in a low cost of acquisition and
+maintenance. However, to the best knowledge of the authors, there is
+no known application of multirotor vehicles in space
+environments. Discarding the obvious impossibility of maneuvering in
+the absence of air, we consider here the use of these vehicles in
+human-compatible pressurised spaces under microgravity, such as inside
+inhabited space stations.
+
+The idea of aerial vehicles inside space stations is not new. The NASA
+project SPHERES (Synchronized Position Hold Engage Reorient
+Experimental Satellites) started in 2000 with the design of a small
+pressurised air propulsion vehicle~\cite{miller00}. In 2006 three
+SPHERES units were deployed aboard the International Space Station
+(ISS)~\cite{nolet07}.  However, the use of pressurised air makes the
+mechanical complexity significantly higher than a multirotor based
+solution.  More recently, NASA proposed the Astrobee vehicle, with a
+simpler propulsion system based on several centrifugal fans and
+nozzles~\cite{bualat15}. The Astrobee also features a 2 DoF arm and
+docking capability. However, most of its volume (about 67\%) and
+area (about 56\%) are occupied by the propulsion system, where each
+fan requires an unobstructed duct from side to side.
+
+The most prominent feature of these spaces is the negligible effect of
+gravity, called microgravity, resulting from the orbital motion of the
+space station around the planet.
+We will exploit this feature in
+the following way. Most multirotor orient their propellers
+vertically along parallel axes. This maximizes thrust vertically in
+order to compensate for the gravity force. However, in doing so they
+need to tilt in order to move sideways. Moreover, most of the energy
+is spent in compensating for gravity. In its absence, not
+only there is no need to compensate for gravity, but also the
+energy consumption is expected to be significantly less. We propose
+to orient the propeller rotation axes non-parallel among them, in
+such a way we obtain a fully holonomic vehicle. We expect to
+increase maneuverability, being a particularly relevant feature inside
+confined spaces such as the interior of a space station.
+
+Holonomic multirotors have been proposed in the past, but the
+literature is scarce. In~\cite{jiang13,voyles12} a dexterous
+hexarotor has been proposed, where the holonomic kinematics is
+used for dexterous manipulation. However, this vehicle is designed for
+Earth applications, and thus a trade-off is necessary between dexterity
+and gravity compensation. Our design is also based in an hexarotor,
+but since we consider microgravity, we will design the propeller
+orientation in order to maximize maneuverability along all
+directions. Related work in design optimization of hexrotors can be
+found in~\cite{rajappa15,kiso15} while in~\cite{langkamp11} a variable
+pitch solution is proposed.
+
+The goal of this paper is to present a design of a aerial robot for
+microgravity environments. We target a modular and multipurpose
+vehicle, providing, for instance, (1)~telepresence, requiring the
+vehicle to manoeuvre in such a way the screen and camera is pointed
+towards the party onboard, and (2)~mobile manipulation, requiring
+force closure in order to compensate the reaction force at the end
+effector. Our design also includes a docking port for docking into a
+charging station and stacking of multiple units for, e.g., combined
+thrust.
+
+This paper is structured as follows: the proposed design is detailed in
+Section~\ref{sec:vehicle-design}, in Section~\ref{sec:propulsion} we
+derive a parametric model of the propulsion system, which is then used
+in Section~\ref{sec:design-parameters} for the optimization its
+parameters. Section~\ref{sec:posit-attit-contr} presents a dynamical
+model of the vehicle together with a
+convergent controller for this holonomic vehicle, and a
+preliminary validation in a realistic simulation environment is
+presented in Section~\ref{sec:prel-valid}, while
+Section~\ref{sec:concl-future-work} wraps up the paper with concluding
+remarks and a reference for future work.
+
+This paper builds upon and extends an early draft available in
+arXiv~\cite{yoda:arxiv16}.
+
+%%% Local Variables: 
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End: 

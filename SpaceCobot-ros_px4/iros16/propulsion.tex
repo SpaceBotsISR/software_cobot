@@ -1,0 +1,139 @@
+
+% To derive the dynamical model of the vehicle, we start by modeling the
+% force and torque vectors caused by a single propeller in the body
+% frame denoted~$\mathcal{B}$, whose origin is coincident with the
+% vehicle's center of mass (CoM).
+
+% In this section we model the propulsion system, starting with the
+% force and torque contributions to the vehicle body of single
+% propeller, and then summing up the combining the contributions of them
+% all.
+
+Consider a single propeller $i$ whose motor is rigidly linked to the
+body frame~$\mathcal{B}$, as depicted in Figure~\ref{fig:prop}.  This
+propeller  generates a reaction force (thrust) $\bar{F}_i$ and  torque
+$\bar{M}_i$ on the vehicle body.
+While the former results directly from the
+propeller thrust,
+\begin{equation}
+  \label{eq:Fi}
+  \bar{F}_i = f_i \hat{u}_i \qquad %\quad\text{for}\quad
+  f_i = K_1 u_i
+\end{equation}
+where $u_i$ is the actuation signal and $f_i$ is the scalar thrust,
+the later is the sum of two components: the torque caused by the
+non-central thrust
+and the propeller reaction torque:
+\begin{equation}
+  \label{eq:Mi}
+  \bar{M}_i = \bar{r}_i\times\bar{F}_i - \tau_i \hat{u}_i \qquad
+  \tau_i = w_i K_2 u_i
+\end{equation}
+where $\times$ denotes vector cross product and $w_i$ is $-1$ or $1$
+depending on whether the propeller rotates clockwise or anti-clockwise
+for a positive forward thrust $f_i>0$.  These linear relationships
+result from the momentum-blade element theory by considering $u=n^2$,
+where $n$ is the blade's rotation speed (in revolutions per second) while the
+constants $K_1$ and $K_2$ given by
+\begin{equation}
+  \label{eq:blade}
+  K_1 = \rho D^4 C_T \qquad K_2 = \frac{\rho D^5}{2\pi} C_P
+\end{equation}
+where $\rho$ is the air density, $D$ is the propeller diameter, and
+the $C_T$ and $C_P$ are blade dependent adimensional constants called
+thrust and power coefficients~\cite{mccormick95}.
+
+The relative position $\bar{r}_i$ of the $i$-th propeller, orthogonal to the
+$Z$ axis, and the unit vector $\hat{u}_i$, aligned with the propeller
+axis, are uniquely defined by the angles $\theta_i$ and $\phi_i$, and can be
+easily obtained from geometrical reasoning by:
+\begin{equation}
+  \bar{r}_i = \left(
+    \begin{array}{c}
+      d\cos(\theta_i) \\
+      d\sin(\theta_i) \\
+      0
+      \end{array}
+    \right)
+    \qquad
+    \hat{u}_i = \left(
+      \begin{array}{c}
+        \sin(\theta_i)\sin(\phi_i) \\
+        -\cos(\theta_i)\sin(\phi_i) \\
+        \cos(\phi_i)
+      \end{array}
+      \right)
+\end{equation}
+where $d=\|\bar{r}_i\|$ is the distance from the propeller to the CoM.
+Stacking together the resulting force $\bar{F}_i$ and torque
+$\bar{M}_i$, one can obtain the linear relation
+\begin{equation}
+  \label{eq:fm}
+  \left(
+    \begin{array}{c}
+      \bar{F}_i \\
+      \bar{M}_i
+    \end{array}
+  \right) = \bar{a}_i\,u_i
+\end{equation}
+where
+\begin{equation}
+  \begin{split}
+    \bar{a}_i  &= \left(
+      \begin{array}{c}
+        K_1 \hat{u}_i \\
+        K_1 \bar{r}_i \times \hat{u}_i - w_i K_2 \hat{u}_i
+      \end{array}
+    \right) \\
+    &= \left(
+      \begin{array}{c}
+        K_1 \sin(\theta_i)\sin(\phi_i) \\
+        -K_1 \cos(\theta_i)\sin(\phi_i) \\
+        K_1 \cos(\phi_i) \\
+        \left[K_1 d \cos(\phi_i) - w_i K_2 \sin(\phi_i)\right]\sin(\theta_i) \\
+        -\left[K_1 d \cos(\phi_i) - w_i K_2 \sin(\phi_i)\right]\cos(\theta_i) \\
+        -K_1 d \sin(\phi_i) - w_i K_2 \cos(\phi_i)
+      \end{array}
+    \right)
+    \end{split}
+\end{equation}
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.6\linewidth]{prop.pdf}
+  \caption{Notation used for modeling a single propeller with respect
+    to the body frame~$\mathcal{B}$, centered on the vehicle's CoM.}
+  \label{fig:prop}
+\end{figure}
+
+For a vehicle with $N$ propellers, the resulting force and torque will
+be given by the sum of the contributions of each propeller, given with
+respect to the CoM, by~\eqref{eq:fm}. This sum can be put in matrix
+form as
+\begin{equation}
+  \label{eq:au}
+  \left(
+    \begin{array}{c}
+      \bar{F} \\
+      \bar{M}
+    \end{array}
+  \right) = \mathbf{A}\,\bar{u}
+\end{equation}
+where $\mathbf{A}=[\bar{a}_1 \cdots \bar{a}_N]$ is a square matrix,
+hereby called \emph{actuation matrix}, and $\bar{u}=[u_1\cdots u_N]^T$
+is the actuation input vector. \emph{The crucial observation is that, if the
+actuation matrix $\mathbf{A}$ has at least rank 6, the linear
+equation~\eqref{eq:au} can be solved for $\bar{u}$ for any given
+combination of $\bar{F}$ and $\bar{M}$.}  A necessary (but not
+sufficient\footnote{Sufficiency required $\mathbf{A}$ to be full
+  rank.}) condition for this to be true is to have at least 6
+propellers, thus justifying the hexarotor design considered in this
+paper. Note that this matrix only depends on the vehicle's design
+parameters, defined by the angles $\{\theta_i\}$ and $\{\phi_i\}$,
+distance $d$, the trust coefficients $K_1$, $K_2$, and $\{w_i\}$.
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

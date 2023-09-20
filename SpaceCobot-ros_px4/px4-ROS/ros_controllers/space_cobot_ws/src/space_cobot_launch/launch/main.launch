@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<launch>
+	<arg name="num_cams" default="1"/>
+
+	<include file="$(find mavros)/launch/px4.launch"/>
+	<group if="$(eval arg('num_cams') == 1)">
+    <include file="$(find jetson_csi_cam)/jetson_csi_cam.launch"/>
+  </group>
+
+	<group if="$(eval arg('num_cams') == 2)">
+		<include file="$(find jetson_csi_cam)/jetson_csi_cam.launch"/>
+		<include file="$(find jetson_csi_cam)/jetson_csi_cam1.launch"/>
+	</group>
+
+	<group if="$(eval arg('num_cams') == 3)">
+		<include file="$(find jetson_csi_cam)/jetson_csi_cam.launch"/>
+		<include file="$(find jetson_csi_cam)/jetson_csi_cam1.launch"/>
+		<include file="$(find jetson_csi_cam)/jetson_csi_cam2.launch"/>
+  </group>
+
+	<group if="$(eval arg('num_cams') == 4)">
+		<include file="$(find jetson_csi_cam)/jetson_csi_cam.launch"/>
+		<include file="$(find jetson_csi_cam)/jetson_csi_cam1.launch"/>
+		<include file="$(find jetson_csi_cam)/jetson_csi_cam2.launch"/>
+    <include file="$(find jetson_csi_cam)/jetson_csi_cam3.launch"/>
+  </group>
+
+	<node pkg="space_cobot_interface" type="space_cobot_interface" name="space_cobot_interface" output="screen"/>
+	<node pkg="space_cobot_controller" type="space_cobot_controller" name="space_cobot_controller" output="screen"/>
+</launch>
