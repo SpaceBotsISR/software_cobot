@@ -1,0 +1,82 @@
+
+% The Space CoBot is an approach to a microgravity UAV, capable of omnidirectional flying, to operate inside the International Space Station, as well as other microgravity atmosphered environments. In the development process, we selected the following guidelines: 
+\begin{figure}
+  \centering
+  \subfloat[]{\includegraphics[width=0.49\linewidth]{propulsion_shell-smaller.jpeg}} \hfill
+  \subfloat[]{\includegraphics[width=0.49\linewidth]{propulsion_system-smaller.jpeg}}
+  \caption{Propulsion system representation: (a)~overall view of the module, and (b)~relative placement of the propellers.}
+  \label{fig:propulsion_system}
+\end{figure}
+
+% As starting point for the design of the aerial vehicle we considered
+% the following requirements:
+% \begin{enumerate}
+% \itemsep=0em
+% \item Safe operation;
+% \item Self-contained and simple propulsion system, with holonomic
+%   kinematics, that is, capable of motion in an arbitrary direction;
+% \item Autonomous Guidance, Navigation and Control (GN\&C);
+% \item Small dimensions;
+% \item Modularity;
+% \item Stackability and docking.
+% \end{enumerate}
+
+As space operation is expensive, we target a modular vehicle whose
+parts can be easily maintained and that is easily extensible with
+additional modules, e.g., hosting of scientific experiment
+testbeds. An overview of all the modules is provided in Figure
+\ref{fig:modules} and explained below.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.95\linewidth]{new-explosion.pdf}
+  \caption{Overall view of Space Cobot modules.}
+  \label{fig:modules}
+\end{figure}
+
+To provide propulsion to the vehicle, we use 6 electric motors with
+4'' propellers, arranged in such a way the kinematics is holonomic. We
+defer a detailed description of this system, along with its
+optimization, to Sections~\ref{sec:propulsion}
+and~\ref{sec:design-parameters}. Our design of this system is shown in
+Figure~\ref{fig:propulsion_system}.
+
+The propulsion module attaches to the central core of the vehicle, a backbone module, that provides support for all remaining subsystems: batteries, a pair of docking connectors, cameras, extension modules, telepresence equipment, and a robotic manipulator.
+
+For positioning inside the station we propose a vision-based
+localization method employing 4 wide-angle cameras, two on the top
+side of the vehicle and two on the bottom. These cameras also enable
+visual servoing of the robotic arm. Autonomous navigation is
+delivered by onboard computation, the Core module, capable of video
+processing and propulsion actuation, as well the management of the
+extension modules.
+
+The docking ports provide multiple functions: they (1)~enable the
+connection between the robot and a charging dock, they (2)~provide a
+physical, solid connection between robots (stacking) for cooperative
+tasks such as faster transportation of heavy loads. For charging, the
+stacking of multiple robots also enables daisy-chained charging across several robots, thus saving space. A detailed view of the docking ports is provided on Figure~\ref{fig:coupling}.
+
+\begin{figure}
+  \centering
+  \subfloat[]{\includegraphics[width=0.49\linewidth]{coupling-detail-smaller.jpeg}} \hfill
+  \subfloat[]{\includegraphics[width=0.49\linewidth]{coupling-view-smaller.jpeg}}
+  \caption{Space Cobot coupling system : (a)~coupling mechanism detail , and (b)~two robots coupled together.}
+  \label{fig:coupling}
+\end{figure}
+
+% Extension modules provide space testbeds for research centers. The robot can have a total of 2.4l of guest modules experiments that can range from control algorithms and electronics to fluid dynamics and small biological components. To access them, remote operation and monitoring of the robot is available, and also one can deploy such task on the Core module of the vehicle, for total autonomous experiment control. This results in a multipurpose testbed for space applications.
+
+Two possible applications of the robot are telepresence and object
+manipulation. Telepresence can be performed using the onboard display,
+speakers, and microphone. Our design has enough space for a common
+tablet-sized display. Mobile manipulation is crucial for robot-environment interaction. A robotic arm with a gripper is provided on the bottom part of the robot, providing several manipulation capabilities such as cargo transportation. This module fits in a standard module bay and can be replaced for additional guest module space.
+
+For safer operation, electric propulsion was used instead of pressurized gas. Along with this, we also feature electromagnetic and acoustic noise reduction methods by using grounded copper mesh on the vehicles construction and acoustic absorvig materials around the motors airflow tunnel. With this, we aim at long periods of operation aboard space stations.
+
+
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

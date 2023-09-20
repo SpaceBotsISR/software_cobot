@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<launch>
+	<include file="$(find mavros)/launch/px4.launch">
+	</include>
+
+	<node name="space_cobot_interface" pkg= "space_cobot_interface" type="space_cobot_interface" output="screen" >
+	<!-- Write the initial values of all rosparams here -->	
+
+	</node>
+	
+
+	<node name="space_cobot_mpc_controller" pkg= "space_cobot_mpc_controller" type="space_cobot_mpc_controller">
+	<!-- Write the initial values of all rosparams here -->	
+
+	</node>
+
+	<!--node pkg="rosbag" type="record" name="rosbag_record"
+        args="/important_values /mavros/imu/data /vrpn_client_node/space_cobot/pose" /-->
+
+
+</launch>

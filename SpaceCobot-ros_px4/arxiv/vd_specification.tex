@@ -1,0 +1,105 @@
+
+Our proposed solution is based on an multirotor vehicle, where the propellers are placed in such a way that full holonomy is attained. That is, fully decoupling the translational from the rotational motion, resulting in a 6 Degrees-of-Freedom (DoF) vehicle. The minimum amount of propellers is thus~6, since each propeller corresponds to a single DoF. We propose electric propulsion, due to its simplicity. Since there is no need to compensate for gravity, we expect the energy consumption to be significantly lower than conventional multirotors on Earth.
+
+On Figure~\ref{fig:overall} we provide a preliminar render for the proposed solution.
+\begin{figure}
+  \centering
+  \subfloat[]{\includegraphics[height=0.33\linewidth]{provided_sol.jpg}} \hfill
+  \subfloat[]{\includegraphics[height=0.33\linewidth]{Side_View_Tech.png}}
+  \caption{Render of the overall view of Space CoBot (left) and its external dimensions (right).}
+  \label{fig:overall}
+\end{figure}
+It is based on 6 electrically powered propellers, protected inside the
+hull of the vehicle. On the top of the vehicle one can find the
+docking port, two wide-angle cameras for telepresence and vision-based
+navigation, and a screen (with the size of a common smartphone). At the bottom one can find another docking port for stacking, and two more wide-angle cameras. In the following subsections we explain how our design addresses each one of the above mentioned requirements.
+
+The size of the robot in our design is 450mm by 210mm, with a maximum free volume of 2.4 liters for guest modules and experiments. Several images of the Space CoBot are presented below, as well as the overall dimensions in Figure~\ref{fig:overall}(b).
+
+\subsubsection{Safety}
+
+Safety is a priority on any object, manned or unmanned, aboard a space station. This poses a problem, as most robots are source of acoustic and electromagnetic noise, which shall be kept at a minimum. Along this, we also have the problem of moving objects, such as the propellers, which may cause debris shall any foreign object hit them.
+
+In order to cope with electromagnetic noise, each section of the robot
+is covered with grounded copper mesh that actuates as a Faraday
+cage. All motors are protected with a carbon grid to prevent floating
+objects of reaching the propellers while they are spinning. Proximity
+sensors are also disposed around the propellers airflow tunnel, to
+detect and stop the motor in case a small object reaches the propulsion system. To make the vehicle as silent as possible, acoustic absorbing material is placed around the motors cavity. 
+
+% ???This also prevents the robot of operating inside the station for larger periods of time, as this is a limiting factor.
+
+
+\subsubsection{Propulsion System}
+
+Taking advantage of the pressurized atmosphere inside a space station, the proposed propulsion system employs six motors, each with a 4 inches propeller.  
+The selection of electric motors for the propulsion system aims at safety, as it does not have to deal with highly pressurized gas tanks, and can be used with interchangeable batteries or fast-charge docking systems. All the 6 motors are placed along the same plane, 60 degrees away from each other. Each motor is, then, tilted 55 degrees from its vertical axis, providing holonomic motion and enabling total force closure. We defer the justification for this angle to Section~\ref{sec:design-parameters}.
+All propellers are kept inside the propulsion module and airflow is driven through net protected vents, so to avoid foreign objects of reaching the propeller. The suggested propulsion system is shown in Figure~\ref{fig:propulsion_system}.
+
+\begin{figure}
+  \centering
+  \subfloat[]{\includegraphics[width=0.49\linewidth]{propulsion_shell.jpg}} \hfill
+  \subfloat[]{\includegraphics[width=0.49\linewidth]{propulsion_system.jpg}}
+  \caption{Propulsion system representation: (a)~overall view of the module, and (b)~relative placement of the propellers.}
+  \label{fig:propulsion_system}
+\end{figure}
+
+
+\subsubsection{GN\&C System}
+
+The navigation and guidance system is based on four wide-angle cameras spread on the top and bottom parts of the device, providing total coverage around the robot. To obtain reliable position and orientation inside the Space Station, robust vision-based algorithms are used in order to locate and navigate the robot. For instance, a combination of stereo and monocular features may be used as proposed in~\cite{yoda:ssrr12fj}.
+
+The control system is composed of a hardware layer and a software stack. 
+The hardware layer is composed by a core system, supporting the base navigation functionalities, and guest systems, allowing for extension modules and scientific payloads. They interface through a distributed communication layer based on parallel protocols. Figure~\ref{fig:comm_module} represents the architecture. In green we represent low-level communications and on red high-level ones.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.7\linewidth]{com_network.png}
+  \caption{Communications between the various modules of the vehicle.}
+  \label{fig:comm_module}
+\end{figure}
+
+On the software side, a low-level autopilot is responsible for basic
+pose stabilization and motor driving system, relying on the low-level
+hardware layer. High-performance algorithms can be deployed on the
+high-level hardware layer, such as vision-based localization and
+telepresence audio and video streaming.
+
+%is capable of trajectory planning and mission scheduling, as well as remote operation (either through Ground Control Station or by any astronaut).
+
+\subsubsection{Modularity}
+
+A crucial requirement for maintenance procedures is modularity. For this purpose, we divided the Space CoBot into several detachable modules:
+\begin{enumerate}
+	\item \emph{Backbone module}: the backbone module provides support for all modules and constitutes the main component of the Space CoBot. It has slots for all modules, provides data connection through all subsystems and it is capable of delivering power to all components. It provides mounting points for 4~wide-angle cameras for navigation, two on the bottom part of the robot and two on the top side. Also, contains a dome module with a telepresence kit (small computer with a screen, webcam, microphone, and speaker), as well as two wide-angle cameras. Modules are attached through a drawer system, with mechanic and magnetic locking, enabling easy swap-on and preparation for all experiments. Two types of drawers can be used: one with 550 cubic centimeters (standard drawer), and other with 1200 cubic centimeters (double height drawer, approximately). 
+	\item \emph{Propulsion module}: contains all the 6 motors, propellers, and Electronic Speed Controllers (ESC). Connects to the backbone module through low level communication protocols, such as CAN (to provide control on each motor), and two power cables.
+	\item \emph{Core module}: contains core GN\&C systems. It can be fitted into a standard or double height drawer, depending on the computational modules or volume for experiments. A Space CoBot can have simultaneously multiple high-level Core modules (for increased computational power), but only one low-level core module.
+	\item \emph{Guest modules}: provides the possibility of extending CoBot's functionality with additional modules, such as experimental test-beds for microgravity;
+	\item \emph{Robotic arm module}: a robotic arm with 4 DoF is provided, allowing manipulation of objects (such as operational knobs) or grasping dock bars. This module fits in a standard drawer and must be replaced on the bottom slot of the vehicle. If no robotic arm is needed, one may replace the drawer with an additional guest module.
+\end{enumerate}
+
+Each module is easily accessible due to the robot layout, and thus it can be easily replaced. A view of all the modules is available on Figure~\ref{fig:explosion}.
+
+\begin{figure}
+  \centering
+  \includegraphics[width=0.9\linewidth]{new-explosion.pdf}
+  \caption{Vehicle modules, excluding propulsion module (see Figure~\ref{fig:propulsion_system}).}
+  \label{fig:explosion}
+\end{figure}
+
+\subsubsection{Stackability}
+
+Stackability ensures compact storage of the Space CoBots when charging. All Space CoBots have two stacking components: a male port, at the top, and a female end, at the bottom. These components are placed on opposite sides of the robot, providing physical and electrical coupling. Its cylindrical symmetry simplify docking, as the heading of the robot is not relevant for a successful connection. When stacked, a power connection is made and we are able to charge several Space CoBots at the same time. When one Space CoBot is fully charged, it can detach itself from the stack and the remain robots may re-attach themselves. Figure~\ref{fig:coupled} shows two coupled robots and a detail view of the coupling mechanism. This mechanism is loosely based on the one proposed in~\cite{yoda:raposa:industrial} for a land robot.
+
+\begin{figure}
+  \centering
+  \subfloat[]{\includegraphics[width=0.49\linewidth]{coupling-view.jpg}} \hfill
+  \subfloat[]{\includegraphics[width=0.49\linewidth]{coupling-detail.jpg}}
+  \caption{Left: two Space CoBots coupled together; right: coupling mechanism detail.}
+  \label{fig:coupled}
+\end{figure}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: "main"
+%%% End:

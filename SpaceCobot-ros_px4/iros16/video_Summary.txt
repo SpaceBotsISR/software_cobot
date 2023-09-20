@@ -1,0 +1,8 @@
+Space CoBot is an aerial vehicle with hexrotor structure designed for
+collaborative tasks inside space stations. This video presents
+illustrative simulation results performed using the Space CoBot model
+and controller presented in the associated paper. The simulations were
+obtained using the V-REP robotics simulator with zero gravity
+(g=0). The simulations consist of several trajectory tracking
+examples, including a case of a un-modelled load transportation and a
+case of multi-vehicle docking.
