@@ -1,8 +1,0 @@
-
-Space CoBot: a collaborative aerial robot for indoor microgravity environments
-
-Pedro Roque and Rodrigo Ventura
-
-This paper presents a first contribution to the design of a small aerial robot for inhabited microgravity environments, such as orbiting space stations. In particular, we target a fleet of robots for collaborative tasks with humans, such as telepresence and cooperative mobile manipulation. We explore a propeller based propulsion system, arranged in such a way that the translational and the rotational components can be decoupled, resulting in an holonomic hexarotor. Since propellers have limited thrust, we employ an optimization approach to select the geometric configuration given a criteria of uniform maximum thrust across all directions in the body reference frame. We also tackle the problem of motion control: due to the decoupling of translational and rotational modes we use separate converging controllers for each one of these modes. In addition, we present preliminary simulation results in a realistic simulator, in closed loop with the proposed controller, thus providing a first validation of the followed methodology.
-
-21 pages, 12 figures
