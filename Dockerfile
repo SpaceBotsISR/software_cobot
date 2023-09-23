@@ -1,7 +1,5 @@
 from osrf/ros:humble-desktop-full
 
-### Run with: docker run -it --network=host --ipc=host -v $PWD/ros2_ws
-
 # Install packages
 RUN sudo apt-get -y update && sudo apt-get -y upgrade \  
     && sudo apt-get -y install libtf2-dev \ 
