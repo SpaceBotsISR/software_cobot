@@ -1,0 +1,6 @@
+# Build the container:
+docker build -t scobot_ros2 .
+
+#Running the container:
+xhost + && docker run -it --network=host --ipc=host -v $PWD/ros2_ws:/ros2_ws -e DISPLAY=host.docker.internal:0 -v /tmp/.X11-unix:/tmp/.X11-unix:rw scobot_ros2
+
