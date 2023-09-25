@@ -14,7 +14,6 @@ RUN sudo apt-get -y update && sudo apt-get -y upgrade \
     ros-$ROS_DISTRO-rviz-visual-tools \
     ros-$ROS_DISTRO-rviz-rendering \
     ros-$ROS_DISTRO-nav2-rviz-plugins  \
-    ros-$ROS_DISTRO-ros1-bridge \
     && sudo apt-get -y install libtf2-dev \ 
     && sudo apt-get -y install \
     git \
