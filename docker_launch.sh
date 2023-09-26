@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sudo chmod -R a+rw /home/nvidia/Desktop/software_cobot
+
 # Check if exactly one argument is provided
 if [ "$#" -ne 1 ]; then
   echo "Usage: $0 {build|run|exec}"
