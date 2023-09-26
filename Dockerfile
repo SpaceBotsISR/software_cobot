@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     ros-humble-rviz-visual-tools \
     ros-humble-rviz-rendering \
     ros-humble-nav2-rviz-plugins \
+    ros-humble-foxglove-bridge \
     libtf2-dev \
     git \
     ccache \

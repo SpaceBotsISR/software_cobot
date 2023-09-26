@@ -11,7 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
 add_executable(number_publisher src/number_publisher.cpp)
-ament_target_dependencies(number_publisher rclcpp)
+ament_target_dependencies(number_publisher rclcpp std_msgs)
 
 install(TARGETS
   number_publisher

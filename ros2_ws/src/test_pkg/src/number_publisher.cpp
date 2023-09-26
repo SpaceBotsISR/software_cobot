@@ -1,10 +1,13 @@
 #include "rclcpp/rclcpp.hpp"
+#include "std_msgs/msg/int64.hpp"
 
 class NumberPublisherNode : public rclcpp::Node {
    public:
     NumberPublisherNode() : Node("number_publisher"), number(0) {
         number_timer = this->create_wall_timer(std::chrono::seconds(1),
-                                               std::bind(&NumberPublisherNode::print_number, this));
+                                               std::bind(&NumberPublisherNode::publish_number, this));
+
+        number_publisher = this->create_publisher<std_msgs::msg::Int64>("number_p", 10);
 
         RCLCPP_INFO(this->get_logger(), "Node Started");
     }
@@ -12,10 +15,14 @@ class NumberPublisherNode : public rclcpp::Node {
    private:
     int number;
     rclcpp::TimerBase::SharedPtr number_timer;
+    rclcpp::Publisher<std_msgs::msg::Int64>::SharedPtr number_publisher;
 
-    void print_number() {
-        RCLCPP_INFO(this->get_logger(), "Number: %d", number);
+    void publish_number() {
+        auto msg = std_msgs::msg::Int64();
+        msg.data = number;
+        number_publisher->publish(msg);
         number++;
+        std::cout << "Number: " << number << std::endl;
     }
 };
 
