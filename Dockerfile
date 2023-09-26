@@ -28,7 +28,7 @@ RUN sudo apt-get -y update && sudo apt-get -y upgrade \
     && rm -rf /var/lib/apt/lists/*
 
 COPY entrypoint.sh /entrypoint.sh
-COPY bashrc /home/${USERNAME}/.bashrc
+COPY bashrc /root/.bashrc
 
 ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
 
