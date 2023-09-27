@@ -1,9 +1,19 @@
 # Example parameter file, see parameters_launch.py
+sensor_id: 0
+cam_name: csi_cam_0
+frame_id: /$(cam_name)_link
+sync_sink: true
+width: 1920
+height: 1080
+fps: 30
+
 
 # Format is namespace_name/node_name
 my_camera/gscam_publisher:
   ros__parameters:
-    gscam_config: 'videotestsrc ! video/x-raw, format=BGRx ! videoconvert'
+    gscam_config: 'nvarguscamerasrc sensor-id=$(sensor_id) ! video/x-raw(memory:NVMM),
+    width=(int)$(width), height=(int)$(height), format=(string)NV12, framerate=(fraction)$(fps)/1 ! 
+    nvvidconv flip-method=2 ! video/x-raw, format=(string)BGRx ! videoconvert'
     preroll: False
     use_gst_timestamps: False
     frame_id: 'my_camera_frame'
