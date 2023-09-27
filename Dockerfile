@@ -3,6 +3,7 @@ FROM arm64v8/ros:humble
 
 # Install packages
 RUN apt-get update && apt-get install -y \
+    # ROS:
     ros-humble-teleop-twist-keyboard \
     ros-humble-rviz2 \
     ros-humble-rviz-common \
@@ -11,11 +12,27 @@ RUN apt-get update && apt-get install -y \
     ros-humble-rviz-rendering \
     ros-humble-nav2-rviz-plugins \
     ros-humble-foxglove-bridge \
+    ros-humble-rosbag2-storage-mcap \
     libtf2-dev \
+    # gstreamer:
+    libgstreamer1.0-0 \
+    gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly \
+    gstreamer1.0-libav \
+    gstreamer1.0-tools \
+    gstreamer1.0-x \
+    gstreamer1.0-alsa \
+    gstreamer1.0-gl \
+    gstreamer1.0-gtk3 \
+    gstreamer1.0-qt5 \
+    gstreamer1.0-pulseaudio \
+    libgstreamer-plugins-base1.0-dev \
+    # Others:
     git \
     ccache \
     net-tools \
-    ros-humble-rosbag2-storage-mcap \
     python3-ament-clang-format \
     python3-argcomplete \
     python3-pip \
@@ -34,4 +51,6 @@ RUN echo "export _colcon_cd_root=/opt/ros/humble/" >> /root/.bashrc
 
 # Set the entry point and default command
 ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
-CMD ["bash"]
+
+CMD ["/bin/bash", "-c", "export GSCAM_CONFIG='videotestsrc pattern=snow ! video/x-raw,width=1280,height=720 ! videoconvert' \
+    && ros2 run gscam2 gscam_main"]
