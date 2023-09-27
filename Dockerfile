@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     ros-humble-nav2-rviz-plugins \
     ros-humble-foxglove-bridge \
     ros-humble-rosbag2-storage-mcap \
+    ros-humble-camera-calibration-parsers \
+    ros-humble-camera-info-manager \
     libtf2-dev \
     # gstreamer:
     libgstreamer1.0-0 \
@@ -48,6 +50,7 @@ RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc
 RUN echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> /root/.bashrc
 RUN echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> /root/.bashrc
 RUN echo "export _colcon_cd_root=/opt/ros/humble/" >> /root/.bashrc
+
 
 # Set the entry point and default command
 ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
