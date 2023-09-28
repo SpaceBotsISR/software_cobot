@@ -1,0 +1,3 @@
+/home/nvidia/Desktop/software_cobot/scripts/camera_streaming/publisher/CMakeFiles/rebuild_cache.dir
+/home/nvidia/Desktop/software_cobot/scripts/camera_streaming/publisher/CMakeFiles/publisher.dir
+/home/nvidia/Desktop/software_cobot/scripts/camera_streaming/publisher/CMakeFiles/edit_cache.dir
