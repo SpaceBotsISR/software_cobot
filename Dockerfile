@@ -31,6 +31,8 @@ RUN apt-get update && apt-get install -y \
     gstreamer1.0-qt5 \
     gstreamer1.0-pulseaudio \
     libgstreamer-plugins-base1.0-dev \
+    # Camera:
+    cmake libgtk-3-dev libjpeg-dev libgles2-mesa-dev libgstreamer1.0-dev \
     # Others:
     git \
     ccache \
@@ -41,6 +43,8 @@ RUN apt-get update && apt-get install -y \
     bash-completion \
     vim \
     && rm -rf /var/lib/apt/lists/*
+
+RUN pip install opencv-python
 
 # Copy the entrypoint script into the container
 COPY entrypoint.sh /entrypoint.sh
