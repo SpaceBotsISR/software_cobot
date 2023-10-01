@@ -1,7 +1,8 @@
-#include <opencv2/opencv.hpp>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 #include <unistd.h>
+
+#include <opencv2/opencv.hpp>
 
 const int sensor_id = 0;
 const int capture_width = 1920;
@@ -14,7 +15,7 @@ const int flip_method = 0;
 int main() {
     int server_socket, client_socket;
     struct sockaddr_in server_addr;
-    char buffer[display_width * display_height * 3]; // Assuming 3 channels (BGR)
+    char buffer[display_width * display_height * 3];  // Assuming 3 channels (BGR)
 
     // Create socket
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -42,7 +43,7 @@ int main() {
 
     while (true) {
         cv::Mat frame(display_height, display_width, CV_8UC3);
-        
+
         ssize_t bytes_received = recv(client_socket, buffer, sizeof(buffer), 0);
         if (bytes_received <= 0) {
             std::cerr << "Connection closed or error" << std::endl;
@@ -51,7 +52,7 @@ int main() {
 
         std::memcpy(frame.data, buffer, bytes_received);
         cv::imshow("Received Frames", frame);
-        
+
         int keyCode = cv::waitKey(10) & 0xFF;
         if (keyCode == 27 || keyCode == 'q') {
             break;
