@@ -4,14 +4,6 @@
 
 #include <opencv2/opencv.hpp>
 
-#define CHECK_SOCKET(B)                                         \
-    if (B <= 0) {                                               \
-        std::cerr << "Connection closed or error" << std::endl; \
-        close(client_socket);                                   \
-        close(server_socket);                                   \
-        exit(1);                                                \
-    }
-
 const int sensor_id = 0;
 const int capture_width = 1920;
 const int capture_height = 1080;
@@ -54,7 +46,10 @@ int main() {
         cv::Mat frame(display_height, display_width, CV_8UC3);
 
         ssize_t bytes_received = recv(client_socket, len_buffer, sizeof(len_buffer), 0);
-        CHECK_SOCKET(bytes_received);
+        if (bytes_received <= 0) {
+            std::cerr << "Connection closed or error" << std::endl;
+            break;
+        }
 
         ssize_t msg_size = std::stoi(len_buffer);
         ssize_t total_bytes_recieved = 0;
@@ -63,9 +58,12 @@ int main() {
             bytes_received =
                 recv(client_socket, buffer + bytes_received, msg_size - bytes_received, 0);
 
-            CHECK_SOCKET(bytes_received);
+            if (bytes_received <= 0) {
+                std::cerr << "Connection closed or error" << std::endl;
+                break;
+            }
 
-            bytes_received += bytes_received;
+            total_bytes_recieved += bytes_received;
         }
 
         std::memcpy(frame.data, buffer, bytes_received);
@@ -77,5 +75,7 @@ int main() {
         }
     }
 
+    close(client_socket);
+    close(server_socket);
     return 0;
 }
