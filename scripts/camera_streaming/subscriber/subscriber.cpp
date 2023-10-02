@@ -16,7 +16,7 @@ int main() {
     int server_socket, client_socket;
     struct sockaddr_in server_addr;
     char buffer[display_width * display_height * 3];  // Assuming 3 channels (BGR)
-    char len_buffer[48];
+    char len_buffer[48] = {0};
 
     // Create socket
     server_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -51,12 +51,13 @@ int main() {
             break;
         }
 
-        ssize_t msg_size = std::stoi(len_buffer);
+        std::cout << "\n\nlen_buffer: " << len_buffer << std::endl;
+        int msg_size = std::stoi(len_buffer);
         ssize_t total_bytes_recieved = 0;
+        ssize_t offset = 0; 
 
         while (total_bytes_recieved < msg_size) {
-            bytes_received =
-                recv(client_socket, buffer + bytes_received, msg_size - bytes_received, 0);
+            bytes_received = recv(client_socket, buffer + offset, msg_size - total_bytes_recieved, 0);
 
             if (bytes_received <= 0) {
                 std::cerr << "Connection closed or error" << std::endl;
@@ -64,9 +65,11 @@ int main() {
             }
 
             total_bytes_recieved += bytes_received;
+            offset += bytes_received;  // Update the offset by the number of bytes received
+            std::cout << "Recived: " << bytes_received << " | Total: " << total_bytes_recieved << std::endl;
         }
 
-        std::memcpy(frame.data, buffer, bytes_received);
+        std::memcpy(frame.data, buffer, total_bytes_recieved);
         cv::imshow("Received Frames", frame);
 
         int keyCode = cv::waitKey(10) & 0xFF;
