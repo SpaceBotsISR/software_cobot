@@ -30,11 +30,11 @@ std::string gstreamer_pipeline() {
            "video/x-raw, format=(string)BGR ! appsink";
 }
 
-class VideoStreamerServer {
+class VideoStreamer {
    public:
-    VideoStreamerServer(std::string ip_address, int port) : isServerRunning(false) {
-        server_socket = socket(AF_INET, SOCK_STREAM, 0);
-        if (server_socket < 0) {
+    VideoStreamer(std::string ip_address, int port) : isConnected(false) {
+        client_socket = socket(AF_INET, SOCK_STREAM, 0);
+        if (client_socket < 0) {
             std::cerr << "Error creating socket!" << std::endl;
             return;
         }
@@ -43,94 +43,82 @@ class VideoStreamerServer {
         server_addr.sin_port = htons(port);
         server_addr.sin_addr.s_addr = inet_addr(ip_address.c_str());
 
-        if (bind(server_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-            std::cerr << "Error binding to port!" << std::endl;
+        // Connect to server
+        if (connect(client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+            std::cerr << "Error connecting to server!" << std::endl;
             return;
         }
 
-        if (listen(server_socket, 5) < 0) {
-            std::cerr << "Error listening on socket!" << std::endl;
-            return;
-        }
-
-        isServerRunning = true;
+        isConnected = true;
 
         video_capture = cv::VideoCapture(gstreamer_pipeline(), cv::CAP_GSTREAMER);
     }
 
-    void run() {
-        if (!isServerRunning) {
-            std::cerr << "Server is not running!" << std::endl;
+    void stream() {
+        if (!isConnected) {
+            std::cerr << "Not connected to server!" << std::endl;
             return;
         }
 
-        while (isServerRunning) {
-            std::cout << "Waiting for client connection..." << std::endl;
+        if (!video_capture.isOpened()) {
+            std::cerr << "Error: Unable to open camera" << std::endl;
+            return;
+        }
 
-            int client_socket = accept(server_socket, NULL, NULL);
-            if (client_socket < 0) {
-                std::cerr << "Error accepting client connection!" << std::endl;
-                continue;
-            }
-
-            std::cout << "Client connected!" << std::endl;
-
-            try {
-                while (video_capture.isOpened()) {
-                    cv::Mat frame;
-                    if (!video_capture.read(frame)) {
-                        std::cerr << "Error reading frame!" << std::endl;
-                        break;
-                    }
-
-                    if (!send_frame(client_socket, frame)) {
-                        std::cerr << "Error sending frame to client!" << std::endl;
-                        break;
-                    }
+        try {
+            while (true) {
+                cv::Mat frame;
+                if (!video_capture.read(frame)) {
+                    break;
                 }
-            } catch (const std::exception& e) {
-                std::cerr << "Exception: " << e.what() << std::endl;
+
+                send_frame(frame);
             }
 
-            std::cout << "Closing client connection..." << std::endl;
+            video_capture.release();
+        } catch (const std::exception& e) {
+            std::cerr << "Exception: " << e.what() << std::endl;
+        }
+
+        close(client_socket);
+    }
+
+    ~VideoStreamer() {
+        if (isConnected) {
             close(client_socket);
         }
     }
 
-    ~VideoStreamerServer() {
-        if (isServerRunning) {
-            close(server_socket);
-        }
-    }
-
    private:
-    int server_socket;
+    int client_socket;
     struct sockaddr_in server_addr;
     cv::VideoCapture video_capture;
-    bool isServerRunning;
+    bool isConnected;
 
-    bool send_frame(int socket, cv::Mat& frame) {
+    void send_frame(cv::Mat& frame) {
         ssize_t msg_size = frame.total() * frame.elemSize();
         unsigned char* frame_data_ptr = frame.data;
+        std::string buff_size_msg = std::to_string(msg_size);
+
+        send(client_socket, buff_size_msg.c_str(), buff_size_msg.length() + 1, 0);
 
         while (msg_size > 0) {
-            ssize_t bytes_sent = send(socket, frame_data_ptr, msg_size, 0);
+            ssize_t bytes_sent = send(client_socket, frame_data_ptr, msg_size, 0);
 
             if (bytes_sent <= 0) {
                 std::cerr << "Error sending data: " << strerror(errno) << std::endl;
-                return false;
+                break;
             }
 
             msg_size -= bytes_sent;
             frame_data_ptr += bytes_sent;
         }
-        return true;
     }
 };
 
 int main() {
     VideoStreamer video_streamer("127.0.0.1", 8080);
-    video_streamer.run();
+    video_streamer.stream();
 
     return 0;
 }
