@@ -7,13 +7,13 @@
 #IncludeRegexTransform: 
 
 /home/nvidia/Desktop/software_cobot/scripts/camera_streaming/subscriber/subscriber.cpp
-opencv2/opencv.hpp
+netinet/in.h
 -
 sys/socket.h
 -
-netinet/in.h
--
 unistd.h
+-
+opencv2/opencv.hpp
 -
 
 /usr/include/opencv4/opencv2/calib3d.hpp
