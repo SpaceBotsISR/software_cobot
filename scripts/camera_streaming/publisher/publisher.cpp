@@ -30,29 +30,41 @@ std::string gstreamer_pipeline() {
            "video/x-raw, format=(string)BGR ! appsink";
 }
 
-int main() {
-    int client_socket;
-    struct sockaddr_in server_addr;
+class VideoStreamer {
+   public:
+    VideoStreamer(std::string ip_address, int port) : isConnected(false) {
+        client_socket = socket(AF_INET, SOCK_STREAM, 0);
+        if (client_socket < 0) {
+            std::cerr << "Error creating socket!" << std::endl;
+            return;
+        }
 
-    client_socket = socket(AF_INET, SOCK_STREAM, 0);
-    if (client_socket < 0) {
-        std::cerr << "Error creating socket!" << std::endl;
-        return -1;
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_port = htons(port);
+        server_addr.sin_addr.s_addr = inet_addr(ip_address.c_str());
+
+        // Connect to server
+        if (connect(client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+            std::cerr << "Error connecting to server!" << std::endl;
+            return;
+        }
+
+        isConnected = true;
+
+        video_capture = cv::VideoCapture(gstreamer_pipeline(), cv::CAP_GSTREAMER);
     }
 
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(8080);
-    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    void stream() {
+        if (!isConnected) {
+            std::cerr << "Not connected to server!" << std::endl;
+            return;
+        }
 
-    // Connect to server
-    if (connect(client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        std::cerr << "Error connecting to server!" << std::endl;
-        return -1;
-    }
+        if (!video_capture.isOpened()) {
+            std::cerr << "Error: Unable to open camera" << std::endl;
+            return;
+        }
 
-    cv::VideoCapture video_capture(gstreamer_pipeline(), cv::CAP_GSTREAMER);
-
-    if (video_capture.isOpened()) {
         try {
             while (true) {
                 cv::Mat frame;
@@ -60,30 +72,50 @@ int main() {
                     break;
                 }
 
-                ssize_t msg_size = frame.total() * frame.elemSize();
-                unsigned char* frame_data_ptr = frame.data;
-
-                while (msg_size > 0) {
-                    ssize_t bytes_sent = send(client_socket, frame_data_ptr, msg_size, 0);
-
-                    if (bytes_sent <= 0) {
-                        std::cerr << "Error sending data: " << strerror(errno) << std::endl;
-                        break;
-                    }
-
-                    msg_size -= bytes_sent;
-                    frame_data_ptr += bytes_sent;
-                }
-                catch (const std::exception& e) {
-                    std::cerr << "Exception: " << e.what() << std::endl;
-                }
-                video_capture.release();
-            }
-            else {
-                std::cerr << "Error: Unable to open camera" << std::endl;
+                send_frame(frame);
             }
 
+            video_capture.release();
+        } catch (const std::exception& e) {
+            std::cerr << "Exception: " << e.what() << std::endl;
+        }
+
+        close(client_socket);
+    }
+
+    ~VideoStreamer() {
+        if (isConnected) {
             close(client_socket);
-            return 0;
         }
     }
+
+   private:
+    int client_socket;
+    struct sockaddr_in server_addr;
+    cv::VideoCapture video_capture;
+    bool isConnected;
+
+    void send_frame(cv::Mat& frame) {
+        ssize_t msg_size = frame.total() * frame.elemSize();
+        unsigned char* frame_data_ptr = frame.data;
+
+        while (msg_size > 0) {
+            ssize_t bytes_sent = send(client_socket, frame_data_ptr, msg_size, 0);
+
+            if (bytes_sent <= 0) {
+                std::cerr << "Error sending data: " << strerror(errno) << std::endl;
+                break;
+            }
+
+            msg_size -= bytes_sent;
+            frame_data_ptr += bytes_sent;
+        }
+    }
+}
+
+int main() {
+    VideoStreamer video_streamer("127.0.0.1", 8080);
+    video_streamer.stream();
+
+    return 0;
+}
