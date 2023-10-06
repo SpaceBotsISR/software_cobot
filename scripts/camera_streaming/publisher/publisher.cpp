@@ -30,79 +30,55 @@ std::string gstreamer_pipeline() {
            "video/x-raw, format=(string)BGR ! appsink";
 }
 
-class VideoStreamer {
+class VideoServer {
    public:
-    VideoStreamer(std::string ip_address, int port) : isConnected(false) {
-        client_socket = socket(AF_INET, SOCK_STREAM, 0);
-        if (client_socket < 0) {
+    VideoServer(int port) {
+        // Create socket
+        server_socket = socket(AF_INET, SOCK_STREAM, 0);
+        if (server_socket < 0) {
             std::cerr << "Error creating socket!" << std::endl;
-            return;
+            exit(1);
         }
 
         server_addr.sin_family = AF_INET;
         server_addr.sin_port = htons(port);
-        server_addr.sin_addr.s_addr = inet_addr(ip_address.c_str());
+        server_addr.sin_addr.s_addr = INADDR_ANY;
 
-        // Connect to server
-        if (connect(client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-            std::cerr << "Error connecting to server!" << std::endl;
-            return;
-        }
+        bind(server_socket, (struct sockaddr *)&server_addr, sizeof(server_addr));
+        listen(server_socket, 1);
+        std::cout << "Waiting for a connection..." << std::endl;
 
-        isConnected = true;
+        server_socket = accept(server_socket, NULL, NULL);
 
         video_capture = cv::VideoCapture(gstreamer_pipeline(), cv::CAP_GSTREAMER);
+        if (!video_capture.isOpened()) {
+            std::cerr << "Error: Unable to open camera" << std::endl;
+            exit(1);
+        }
     }
 
     void stream() {
-        if (!isConnected) {
-            std::cerr << "Not connected to server!" << std::endl;
-            return;
+        cv::Mat frame;
+        while (video_capture.read(frame)) {
+            send_frame(frame);
         }
-
-        if (!video_capture.isOpened()) {
-            std::cerr << "Error: Unable to open camera" << std::endl;
-            return;
-        }
-
-        try {
-            while (true) {
-                cv::Mat frame;
-                if (!video_capture.read(frame)) {
-                    break;
-                }
-
-                send_frame(frame);
-            }
-
-            video_capture.release();
-        } catch (const std::exception& e) {
-            std::cerr << "Exception: " << e.what() << std::endl;
-        }
-
-        close(client_socket);
-    }
-
-    ~VideoStreamer() {
-        if (isConnected) {
-            close(client_socket);
-        }
+        video_capture.release();
+        close(server_socket);
     }
 
    private:
-    int client_socket;
+    int server_socket;
     struct sockaddr_in server_addr;
     cv::VideoCapture video_capture;
     bool isConnected;
 
     void send_frame(cv::Mat& frame) {
         ssize_t msg_size = frame.total() * frame.elemSize();
-        std::cout << msg_size << std::endl;
         unsigned char* frame_data_ptr = frame.data;
         std::string buff_size_msg = std::to_string(msg_size);
 
         while (msg_size > 0) {
-            ssize_t bytes_sent = send(client_socket, frame_data_ptr, msg_size, 0);
+            ssize_t bytes_sent = send(server_socket, frame_data_ptr, msg_size, 0);
 
             if (bytes_sent <= 0) {
                 std::cerr << "Error sending data: " << strerror(errno) << std::endl;
@@ -117,8 +93,8 @@ class VideoStreamer {
 
 int main() {
     std::cout << gstreamer_pipeline() << std::endl;
-    VideoStreamer video_streamer("127.0.0.1", 8080);
-    video_streamer.stream();
+    VideoServer video_server(8080);
+    video_server.stream();
 
     return 0;
 }

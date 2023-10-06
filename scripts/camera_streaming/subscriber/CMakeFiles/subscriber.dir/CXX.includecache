@@ -7,6 +7,8 @@
 #IncludeRegexTransform: 
 
 /home/nvidia/Desktop/software_cobot/scripts/camera_streaming/subscriber/subscriber.cpp
+arpa/inet.h
+-
 netinet/in.h
 -
 sys/socket.h
