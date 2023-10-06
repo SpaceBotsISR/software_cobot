@@ -97,10 +97,9 @@ class VideoStreamer {
 
     void send_frame(cv::Mat& frame) {
         ssize_t msg_size = frame.total() * frame.elemSize();
+        std::cout << msg_size << std::endl;
         unsigned char* frame_data_ptr = frame.data;
         std::string buff_size_msg = std::to_string(msg_size);
-
-        send(client_socket, buff_size_msg.c_str(), buff_size_msg.length() + 1, 0);
 
         while (msg_size > 0) {
             ssize_t bytes_sent = send(client_socket, frame_data_ptr, msg_size, 0);
@@ -117,6 +116,7 @@ class VideoStreamer {
 };
 
 int main() {
+    std::cout << gstreamer_pipeline() << std::endl;
     VideoStreamer video_streamer("127.0.0.1", 8080);
     video_streamer.stream();
 

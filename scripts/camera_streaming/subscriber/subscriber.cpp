@@ -42,7 +42,7 @@ class VideoClient {
         cv::namedWindow("Received Frames", cv::WINDOW_AUTOSIZE);
 
         while (true) {
-            ssize_t msg_size = get_msg_size();
+            ssize_t msg_size = 1555200;
             ssize_t total_bytes_received = 0;
             ssize_t offset = 0;
 
@@ -70,7 +70,7 @@ class VideoClient {
         ssize_t bytes_received = recv(client_socket, len_buffer, sizeof(len_buffer), 0);
         if (bytes_received <= 0) {
             std::cerr << "Connection closed or error" << std::endl;
-            return;
+            exit(1);
         }
 
         std::cout << "\n\nlen_buffer: " << len_buffer << std::endl;
@@ -79,7 +79,7 @@ class VideoClient {
 
     void read_and_display(ssize_t msg_size) {
         cv::Mat frame(display_height, display_width, CV_8UC3);
-        std::unique_ptr<char[]> buffer = std::make_unique<char[]>(msg_size);
+        char* buffer = new char[msg_size];
 
         ssize_t total_bytes_received = 0;
         ssize_t offset = 0;
@@ -102,6 +102,7 @@ class VideoClient {
 
         std::memcpy(frame.data, buffer, total_bytes_received);
         cv::imshow("Received Frames", frame);
+        delete[] buffer;
     }
 };
 
