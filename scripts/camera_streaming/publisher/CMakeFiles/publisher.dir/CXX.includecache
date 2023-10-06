@@ -7,15 +7,15 @@
 #IncludeRegexTransform: 
 
 /home/nvidia/Desktop/software_cobot/scripts/camera_streaming/publisher/publisher.cpp
-opencv2/opencv.hpp
--
-sys/socket.h
+arpa/inet.h
 -
 netinet/in.h
 -
-arpa/inet.h
+sys/socket.h
 -
 unistd.h
+-
+opencv2/opencv.hpp
 -
 
 /usr/include/opencv4/opencv2/calib3d.hpp
