@@ -15,6 +15,8 @@ RUN apt-get update && apt-get install -y \
     ros-humble-rosbag2-storage-mcap \
     ros-humble-camera-calibration-parsers \
     ros-humble-camera-info-manager \
+    ros-humble-sensor-msgs \
+    ros-humble-cv-bridge \
     libtf2-dev \
     # gstreamer:
     libgstreamer1.0-0 \
@@ -42,6 +44,7 @@ RUN apt-get update && apt-get install -y \
     python3-pip \
     bash-completion \
     vim \
+    libopencv-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install opencv-python
