@@ -16,25 +16,8 @@ RUN apt-get update && apt-get install -y \
     ros-humble-camera-calibration-parsers \
     ros-humble-camera-info-manager \
     ros-humble-sensor-msgs \
-    ros-humble-cv-bridge \
     libtf2-dev \
-    # gstreamer:
-    libgstreamer1.0-0 \
-    gstreamer1.0-plugins-base \
-    gstreamer1.0-plugins-good \
-    gstreamer1.0-plugins-bad \
-    gstreamer1.0-plugins-ugly \
-    gstreamer1.0-libav \
-    gstreamer1.0-tools \
-    gstreamer1.0-x \
-    gstreamer1.0-alsa \
-    gstreamer1.0-gl \
-    gstreamer1.0-gtk3 \
-    gstreamer1.0-qt5 \
-    gstreamer1.0-pulseaudio \
-    libgstreamer-plugins-base1.0-dev \
-    # Camera:
-    cmake libgtk-3-dev libjpeg-dev libgles2-mesa-dev libgstreamer1.0-dev \
+        
     # Others:
     git \
     ccache \
@@ -47,6 +30,7 @@ RUN apt-get update && apt-get install -y \
     bash-completion \
     vim \
     libopencv-dev \
+    python3-opencv \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install opencv-python
