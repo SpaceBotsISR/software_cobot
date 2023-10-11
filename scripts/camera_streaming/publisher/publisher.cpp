@@ -1,38 +1,39 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <signal.h>
 
 #include <opencv2/opencv.hpp>
 
-const int sensor_id = 0;
-const int capture_width = 1920;
-const int capture_height = 1080;
-const int display_width = 960;
-const int display_height = 540;
-const int framerate = 30;
-const int flip_method = 0;
+#define SENSOR_ID 0
+#define CAPTURE_WIDTH 1920
+#define CAPTURE_HEIGHT 1080
+#define DISPLAY_WIDTH 960
+#define DISPLAY_HEIGHT 540
+#define FRAMERATE 30
+#define FLIP_METHOD 2
+#define FRAME_SIZE DISPLAY_WIDTH* DISPLAY_HEIGHT * 3
 
 std::string gstreamer_pipeline() {
-    return "nvarguscamerasrc sensor-id=" + std::to_string(sensor_id) +
+    return "nvarguscamerasrc sensor-id=" + std::to_string(SENSOR_ID) +
            " ! "
            "video/x-raw(memory:NVMM), width=(int)" +
-           std::to_string(capture_width) + ", height=(int)" + std::to_string(capture_height) +
-           ", framerate=(fraction)" + std::to_string(framerate) +
+           std::to_string(CAPTURE_WIDTH) + ", height=(int)" + std::to_string(CAPTURE_HEIGHT) +
+           ", FRAMERATE=(fraction)" + std::to_string(FRAMERATE) +
            "/1 ! "
            "nvvidconv flip-method=" +
-           std::to_string(flip_method) +
+           std::to_string(FLIP_METHOD) +
            " ! "
            "video/x-raw, width=(int)" +
-           std::to_string(display_width) + ", height=(int)" + std::to_string(display_height) +
+           std::to_string(DISPLAY_WIDTH) + ", height=(int)" + std::to_string(DISPLAY_HEIGHT) +
            ", format=(string)BGRx ! "
            "videoconvert ! "
            "video/x-raw, format=(string)BGR ! appsink";
 }
 
 class VideoServer {
-public:
+   public:
     VideoServer(int port) {
         init_socket(port);
         video_capture = cv::VideoCapture(gstreamer_pipeline(), cv::CAP_GSTREAMER);
@@ -59,7 +60,7 @@ public:
         server_addr.sin_port = htons(port);
         server_addr.sin_addr.s_addr = INADDR_ANY;
 
-        bind(listening_socket, (struct sockaddr *)&server_addr, sizeof(server_addr));
+        bind(listening_socket, (struct sockaddr*)&server_addr, sizeof(server_addr));
         listen(listening_socket, 1);
     }
 
@@ -88,7 +89,7 @@ public:
         close(listening_socket);  // Close the listening socket only when we're completely done
     }
 
-private:
+   private:
     int listening_socket;
     int client_socket;
     struct sockaddr_in server_addr;
@@ -112,7 +113,6 @@ private:
         return true;
     }
 };
-
 
 int main() {
     signal(SIGPIPE, SIG_IGN);  // Ignore SIGPIPE signals
