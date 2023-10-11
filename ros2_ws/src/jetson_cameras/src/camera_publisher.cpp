@@ -1,14 +1,15 @@
 #include <arpa/inet.h>
-// #include <cv_bridge/cv_bridge.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-// #include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
-#define FRAME_SIZE 1555200
 #define SENSOR_ID 0
 #define CAPTURE_WIDTH 1920
 #define CAPTURE_HEIGHT 1080
@@ -16,11 +17,13 @@
 #define DISPLAY_HEIGHT 540
 #define FRAMERATE 30
 #define FLIP_METHOD 0
+#define FRAME_SIZE DISPLAY_WIDTH* DISPLAY_HEIGHT * 3
 
 class CameraPublisher : public rclcpp::Node {
    public:
-    CameraPublisher() : Node("video_receiver"), frame_pub(nullptr) {
-        frame_pub = this->create_publisher<sensor_msgs::msg::Image>("video_frame", 10);
+    CameraPublisher() : Node("camera_publisher"), frame_pub(nullptr) {
+        frame_pub =
+            this->create_publisher<sensor_msgs::msg::CompressedImage>("camera/compressed", 10);
 
         // Socket setup
         client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -50,21 +53,12 @@ class CameraPublisher : public rclcpp::Node {
    private:
     int client_socket;
     struct sockaddr_in server_addr;
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr frame_pub;
+    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr frame_pub;
     rclcpp::TimerBase::SharedPtr timer_;
 
     void image_publisher_callback() {
         ssize_t msg_size = FRAME_SIZE;
-        auto msg = std::make_unique<sensor_msgs::msg::Image>();
-
-        // The image is in BGR8 format
-        msg->encoding = "bgr8";
-        msg->width = DISPLAY_WIDTH;    // Use defined constants for width
-        msg->height = DISPLAY_HEIGHT;  // Use defined constants for height
-        msg->step = msg->width * 3;    // 3 bytes per pixel for BGR8
-
-        // Resize data to fit our image content
-        msg->data.resize(msg_size);
+        cv::Mat image(DISPLAY_HEIGHT, DISPLAY_WIDTH, CV_8UC3);
 
         ssize_t total_bytes_received = 0;
         ssize_t offset = 0;
@@ -72,7 +66,7 @@ class CameraPublisher : public rclcpp::Node {
 
         while (total_bytes_received < msg_size) {
             bytes_received =
-                recv(client_socket, msg->data.data() + offset, msg_size - total_bytes_received, 0);
+                recv(client_socket, image.data + offset, msg_size - total_bytes_received, 0);
             if (bytes_received <= 0) {
                 std::cerr << "Connection closed or error" << std::endl;
                 exit(1);
@@ -81,7 +75,14 @@ class CameraPublisher : public rclcpp::Node {
             offset += bytes_received;
         }
 
-        frame_pub->publish(*msg);  // Use frame_pub here
+        std::vector<uchar> buffer;
+        cv::imencode(".jpg", image, buffer);
+
+        auto msg = std::make_unique<sensor_msgs::msg::CompressedImage>();
+        msg->format = "jpeg";  // Specify the format here
+        msg->data.assign(buffer.begin(), buffer.end());
+
+        frame_pub->publish(*msg);
     }
 };
 
