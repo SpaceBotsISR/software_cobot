@@ -9,16 +9,15 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(cv_bridge REQUIRED)
-find_package(OpenCV REQUIRED)
+# find_package(cv_bridge REQUIRED)
+# find_package(OpenCV REQUIRED)
 
 include_directories(
   include
-  ${OpenCV_INCLUDE_DIRS}
 )
 
 add_executable(camera_publisher src/camera_publisher.cpp)
-ament_target_dependencies(camera_publisher rclcpp sensor_msgs cv_bridge OpenCV)
+ament_target_dependencies(camera_publisher rclcpp sensor_msgs)
 
 install(TARGETS
   camera_publisher

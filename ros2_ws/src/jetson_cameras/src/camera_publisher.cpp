@@ -1,10 +1,10 @@
 #include <arpa/inet.h>
-#include <cv_bridge/cv_bridge.h>
+// #include <cv_bridge/cv_bridge.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <opencv2/opencv.hpp>
+// #include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
@@ -40,10 +40,9 @@ class CameraPublisher : public rclcpp::Node {
 
         RCLCPP_INFO(this->get_logger(), "Connected to server.");
 
-        // Use a timer to control the rate of frame reading
-        timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(1000 / FRAMERATE),
-            std::bind(&CameraPublisher::read_and_publish, this, FRAME_SIZE));
+        timer_ =
+            this->create_wall_timer(std::chrono::milliseconds(30),
+                                    std::bind(&CameraPublisher::image_publisher_callback, this));
     }
 
     ~CameraPublisher() { close(client_socket); }
@@ -54,9 +53,18 @@ class CameraPublisher : public rclcpp::Node {
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr frame_pub;
     rclcpp::TimerBase::SharedPtr timer_;
 
-    void read_and_publish(ssize_t msg_size) {
-        cv::Mat frame(DISPLAY_HEIGHT, DISPLAY_WIDTH, CV_8UC3);
-        char* buffer = new char[msg_size];
+    void image_publisher_callback() {
+        ssize_t msg_size = FRAME_SIZE;
+        auto msg = std::make_unique<sensor_msgs::msg::Image>();
+
+        // The image is in BGR8 format
+        msg->encoding = "bgr8";
+        msg->width = DISPLAY_WIDTH;    // Use defined constants for width
+        msg->height = DISPLAY_HEIGHT;  // Use defined constants for height
+        msg->step = msg->width * 3;    // 3 bytes per pixel for BGR8
+
+        // Resize data to fit our image content
+        msg->data.resize(msg_size);
 
         ssize_t total_bytes_received = 0;
         ssize_t offset = 0;
@@ -64,24 +72,16 @@ class CameraPublisher : public rclcpp::Node {
 
         while (total_bytes_received < msg_size) {
             bytes_received =
-                recv(client_socket, buffer + offset, msg_size - total_bytes_received, 0);
-
+                recv(client_socket, msg->data.data() + offset, msg_size - total_bytes_received, 0);
             if (bytes_received <= 0) {
                 std::cerr << "Connection closed or error" << std::endl;
                 exit(1);
             }
-
             total_bytes_received += bytes_received;
-            offset += bytes_received;  // Update the offset by the number of bytes received
+            offset += bytes_received;
         }
-        std::memcpy(frame.data, buffer, total_bytes_received);
 
-        // Convert the cv::Mat to a sensor_msgs::Image and publish it
-        sensor_msgs::msg::Image::SharedPtr img_msg =
-            cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", frame).toImageMsg();
-        frame_pub->publish(*img_msg);
-
-        delete[] buffer;
+        frame_pub->publish(*msg);  // Use frame_pub here
     }
 };
 
