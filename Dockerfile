@@ -42,6 +42,8 @@ RUN apt-get update && apt-get install -y \
     python3-ament-clang-format \
     python3-argcomplete \
     python3-pip \
+    python3-numpy \
+    libboost-python-dev \
     bash-completion \
     vim \
     libopencv-dev \
