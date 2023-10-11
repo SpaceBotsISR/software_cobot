@@ -13,3 +13,7 @@
 .env
 .vscode/
 *.so
+/log/
+*.so
+*.pyc
+.vscode/
