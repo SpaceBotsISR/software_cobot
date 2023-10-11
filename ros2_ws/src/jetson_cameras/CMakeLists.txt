@@ -9,6 +9,10 @@ endif()
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
+<<<<<<< HEAD
+=======
+find_package(cv_bridge REQUIRED)
+>>>>>>> camera ros2
 find_package(OpenCV REQUIRED)
 
 include_directories(
@@ -17,8 +21,12 @@ include_directories(
 )
 
 add_executable(camera_publisher src/camera_publisher.cpp)
+<<<<<<< HEAD
 ament_target_dependencies(camera_publisher rclcpp sensor_msgs)
 target_link_libraries(camera_publisher ${OpenCV_LIBS}) # Change this line
+=======
+ament_target_dependencies(camera_publisher rclcpp sensor_msgs cv_bridge OpenCV)
+>>>>>>> camera ros2
 
 install(TARGETS
   camera_publisher
