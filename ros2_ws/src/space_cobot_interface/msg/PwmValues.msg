@@ -35,4 +35,4 @@ float64[3] err_int
 float64 time_step
 
 # Quaternion Error
-float64[3] quat_error1
+float64[3] quat_error
