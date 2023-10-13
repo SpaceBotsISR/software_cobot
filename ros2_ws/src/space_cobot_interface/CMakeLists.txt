@@ -19,6 +19,8 @@ find_package(OpenCV REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 include_directories( ${OpenCV_INCLUDE_DIRS} )
+include_directories(include)
+
 
 set(msg_files
   "msg/PwmValues.msg"
@@ -60,6 +62,8 @@ ament_target_dependencies(
 
 rosidl_target_interfaces (spaceCobotInterface ${PROJECT_NAME} "rosidl_typesupport_cpp")
 
+ament_export_dependencies(rosidl_default_generators)
+
 target_link_libraries(
   spaceCobotInterface ${colcon_LIBRARIES} ${OpenCV_LIBS}
 )
@@ -67,6 +71,17 @@ target_link_libraries(
 install(TARGETS spaceCobotInterface
   DESTINATION lib/${PROJECT_NAME}
 )
+
+install(
+  DIRECTORY include/
+  DESTINATION share/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY include/
+  DESTINATION include
+)
+
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
