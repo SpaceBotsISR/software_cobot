@@ -1,8 +1,0 @@
-prefix=/usr/local
-
-Name: space_cobot_controller
-Description: Description of space_cobot_controller
-Version: 0.0.0
-Cflags: -I/usr/local/include
-Libs: -L/usr/local/lib -lspace_cobot_controller
-Requires: roscpp rospy std_msgs message_generation message_runtime tf
