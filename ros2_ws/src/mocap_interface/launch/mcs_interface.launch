@@ -1,0 +1,7 @@
+<launch>
+	
+	<node name="mcs_interface_node" pkg="mocap_interface_ns" type="mcs_interface_node" output="screen">
+		<rosparam command="load" file="$(find mocap_interface_ns)/resource/mcs_interface_param.yaml" />
+	</node>
+
+</launch>
