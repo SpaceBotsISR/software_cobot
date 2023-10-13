@@ -219,7 +219,7 @@ void manualControl_OrientationBodyIncremental()
     cvChange.ptr<float>(0)[1] = rc_y_change;
     cvChange.ptr<float>(0)[2] = rc_z_change;
 
-    /// The main Rodriguez Formula
+    /// The main Rodriguez Formulaf
     cv::Rodrigues(cvChange, cvRI);
 
     /// Need to convert cvRI to Ri i.e the eigen matrix for easier multiplication
