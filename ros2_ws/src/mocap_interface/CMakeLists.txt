@@ -3,7 +3,7 @@ project(mocap_interface)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
-endif()1
+endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -41,8 +41,14 @@ set (msg_files
   "msg/MocapMsg.msg"
 )
 
+set (msg_file_depencies
+  "std_msgs"
+  "geometry_msgs")
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
+  DEPENDENCIES
+  ${msg_file_depencies}
 )
 
 ament_export_dependencies(rosidl_default_runtime)

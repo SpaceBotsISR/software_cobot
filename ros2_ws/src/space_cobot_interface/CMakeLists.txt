@@ -26,8 +26,13 @@ set(msg_files
   "msg/PwmValues.msg"
 )
 
+set (msg_file_depencies
+  std_msgs)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
+  DEPENDENCIES 
+  ${msg_file_depencies}
 )
 
 ament_export_dependencies(rosidl_default_runtime)

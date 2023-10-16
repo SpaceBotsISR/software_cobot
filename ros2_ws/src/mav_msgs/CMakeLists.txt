@@ -58,8 +58,15 @@ set (msg_files
   "msg/GpsWaypoint.msg"
 )
 
+set (msg_file_depencies
+  std_msgs
+  geometry_msgs
+)
+
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
+  DEPENDENCIES
+  ${msg_file_depencies}
 )
 
 ament_export_dependencies(rosidl_default_generators)
