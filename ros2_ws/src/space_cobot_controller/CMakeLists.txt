@@ -75,6 +75,10 @@ ament_export_dependencies(rosidl_default_runtime
   space_cobot_interface
 )
 
+install(
+  DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
