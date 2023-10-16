@@ -331,35 +331,35 @@ int main(int argc, char **argv)
     /// Initialising the rosparams
     /// commenting position and velocity rosparam for now for safety
     /// this is incorporated in the getGains() where these are made into a diagonal matrix for using in the Moment function
-    auto orientation_desired_rpy = node->declare_parameter<vector<double>>("desired_orientation_rpy", orientation_desired_rpy);
-    auto angular_velocity_desired = node->declare_parameter<vector<double>>("desired_angular_velocity", angular_velocity_desired);
-    auto position_desired = node->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
-    auto velocity_desired = node->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
-    auto att_p_gain = node->declare_parameter<vector<double>>("AttPGain", att_p_gain);
-    auto att_i_gain = node->declare_parameter<vector<double>>("AttIGain", att_i_gain);
-    auto att_d_gain = node->declare_parameter<vector<double>>("AttDGain", att_d_gain);
-    auto time_step = node->declare_parameter<float>("TimeStep", time_step);
-    auto force_mode = node->declare_parameter<bool>("ForceMode", force_mode);
-    auto pos_p_gain = node->declare_parameter<vector<double>>("PosPGain", pos_p_gain);
-    auto pos_i_gain = node->declare_parameter<vector<double>>("PosIGain", pos_i_gain);
-    auto pos_d_gain = node->declare_parameter<vector<double>>("PosDGain", pos_d_gain);
+    auto _orientation_desired_rpy = node->declare_parameter<vector<double>>("desired_orientation_rpy", orientation_desired_rpy);
+    auto _angular_velocity_desired = node->declare_parameter<vector<double>>("desired_angular_velocity", angular_velocity_desired);
+    auto _position_desired = node->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
+    auto _velocity_desired = node->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
+    auto _att_p_gain = node->declare_parameter<vector<double>>("AttPGain", att_p_gain);
+    auto _att_i_gain = node->declare_parameter<vector<double>>("AttIGain", att_i_gain);
+    auto _att_d_gain = node->declare_parameter<vector<double>>("AttDGain", att_d_gain);
+    auto _time_step = node->declare_parameter<float>("TimeStep", time_step);
+    auto _force_mode = node->declare_parameter<bool>("ForceMode", force_mode);
+    auto _pos_p_gain = node->declare_parameter<vector<double>>("PosPGain", pos_p_gain);
+    auto _pos_i_gain = node->declare_parameter<vector<double>>("PosIGain", pos_i_gain);
+    auto _pos_d_gain = node->declare_parameter<vector<double>>("PosDGain", pos_d_gain);
 
     while (rclcpp::ok())
     {
         /// getting all the rosparams
-        node->get_parameter("desired_position", position_desired);
-        node->get_parameter("desired_velocity", velocity_desired);
-        node->get_parameter("desired_orientation_rpy", orientation_desired_rpy);
-        node->get_parameter("desired_angular_velocity", angular_velocity_desired);
-        node->get_parameter("AttPGain", att_p_gain);
-        node->get_parameter("AttIGain", att_i_gain);
-        node->get_parameter("AttDGain", att_d_gain);
-        node->get_parameter("TimeStep", time_step);
-        node->get_parameter("ForceMode", force_mode);
+        node->get_parameter("desired_position", _position_desired);
+        node->get_parameter("desired_velocity", _velocity_desired);
+        node->get_parameter("desired_orientation_rpy", _orientation_desired_rpy);
+        node->get_parameter("desired_angular_velocity", _angular_velocity_desired);
+        node->get_parameter("AttPGain", _att_p_gain);
+        node->get_parameter("AttIGain", _att_i_gain);
+        node->get_parameter("AttDGain", _att_d_gain);
+        node->get_parameter("TimeStep", _time_step);
+        node->get_parameter("ForceMode", _force_mode);
 
-        node->get_parameter("PosPGain", pos_p_gain);
-        node->get_parameter("PosIGain", pos_i_gain);
-        node->get_parameter("PosDGain", pos_d_gain);
+        node->get_parameter("PosPGain", _pos_p_gain);
+        node->get_parameter("PosIGain", _pos_i_gain);
+        node->get_parameter("PosDGain", _pos_d_gain);
 
         // Getting target orientation from the rosparam to global variable quaternion
         getTargetOrientation(orientation_desired_rpy);
