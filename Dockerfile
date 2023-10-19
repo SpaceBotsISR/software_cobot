@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y \
     ros-humble-camera-info-manager \
     ros-humble-sensor-msgs \
     libtf2-dev \
-        
     # Others:
     git \
     ccache \

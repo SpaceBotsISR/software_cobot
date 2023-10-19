@@ -1,0 +1,3 @@
+/Users/diogoferreira/CodeWs/software_cobot/camera_streamer/CMakeFiles/camera_streamer.dir
+/Users/diogoferreira/CodeWs/software_cobot/camera_streamer/CMakeFiles/edit_cache.dir
+/Users/diogoferreira/CodeWs/software_cobot/camera_streamer/CMakeFiles/rebuild_cache.dir
