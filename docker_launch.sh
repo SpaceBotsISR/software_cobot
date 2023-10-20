@@ -12,6 +12,7 @@ fi
 case "$1" in
   "build")
     # Docker build command
+    docker rm scobot 
     docker build -t scobot_ros2 .
     ;;
   "run")
