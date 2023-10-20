@@ -37,7 +37,7 @@ class VideoServer {
    public:
     VideoServer(int port) {
         init_socket(port);
-        video_capture = cv::VideoCapture(gstreamer_pipeline(), cv::CAP_GSTREAMER);
+        video_capture = cv::VideoCapture(gstreamer_pipeline(sensor_id), cv::CAP_GSTREAMER);
         if (!video_capture.isOpened()) {
             std::cerr << "Error: Unable to open camera" << std::endl;
             exit(1);
