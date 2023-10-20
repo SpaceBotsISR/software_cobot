@@ -1,0 +1,17 @@
+build
+install
+log
+/__pycache__
+*.pyc
+*.o
+*.so
+*.exe
+*.out
+*.log
+*.db
+.env
+.vscode/
+/log/
+*.so
+*.pyc
+.vscode/
