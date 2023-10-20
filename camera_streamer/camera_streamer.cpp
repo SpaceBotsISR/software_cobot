@@ -33,7 +33,7 @@ std::string gstreamer_pipeline(int sensor_id) {
            "video/x-raw, format=(string)BGR ! appsink";
 }
 
-class VideoServer {
+class VideoServer : sensor_id(sensor_id) {
    public:
     VideoServer(int port) {
         init_socket(port);
@@ -93,6 +93,7 @@ class VideoServer {
    private:
     int listening_socket;
     int client_socket;
+    int sensor_id;
     struct sockaddr_in server_addr;
     cv::VideoCapture video_capture;
 
@@ -150,7 +151,7 @@ int main(int argc, char* argv[]) {
 
         if (pid == 0) {  // Child process
             std::cout << gstreamer_pipeline(sensor_id) << std::endl;
-            VideoServer video_server(base_port + sensor_id);
+            VideoServer video_server(base_port + sensor_id, sensor_id);
             video_server.stream();
             exit(0);  // End child process after streaming
         } else if (pid < 0) {
