@@ -29,23 +29,15 @@ RUN apt-get update && apt-get install -y \
     bash-completion \
     vim \
     libopencv-dev \
-    python3-opencv \
-    && rm -rf /var/lib/apt/lists/*
+    python3-opencv && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip install opencv-python
 
-RUN pip install opencv-python
-
-# Copy the entrypoint script into the container
-COPY entrypoint.sh /entrypoint.sh
 
 # Add environment setup to the user's .bashrc
-RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc
-RUN echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> /root/.bashrc
-RUN echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> /root/.bashrc
-RUN echo "export _colcon_cd_root=/opt/ros/humble/" >> /root/.bashrc
+RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
+    echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> /root/.bashrc && \
+    echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> /root/.bashrc && \
+    echo "export _colcon_cd_root=/opt/ros/humble/" >> /root/.bashrc
 
 
-# Set the entry point and default command
-ENTRYPOINT ["/bin/bash", "/entrypoint.sh"]
-
-CMD ["/bin/bash", "-c", "export GSCAM_CONFIG='videotestsrc pattern=snow ! video/x-raw,width=1280,height=720 ! videoconvert' \
-    && ros2 run gscam2 gscam_main"]
