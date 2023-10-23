@@ -33,9 +33,9 @@ std::string gstreamer_pipeline(int sensor_id) {
            "video/x-raw, format=(string)BGR ! appsink";
 }
 
-class VideoServer : sensor_id(sensor_id) {
+class VideoServer {
    public:
-    VideoServer(int port) {
+    VideoServer(int port, int sensor_id) {
         init_socket(port);
         video_capture = cv::VideoCapture(gstreamer_pipeline(sensor_id), cv::CAP_GSTREAMER);
         if (!video_capture.isOpened()) {
