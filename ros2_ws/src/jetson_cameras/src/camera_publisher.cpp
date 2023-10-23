@@ -10,7 +10,6 @@
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/image.hpp>
 
-#define SENSOR_ID 0
 #define CAPTURE_WIDTH 1920
 #define CAPTURE_HEIGHT 1080
 #define DISPLAY_WIDTH 960
@@ -22,8 +21,14 @@
 class CameraPublisher : public rclcpp::Node {
    public:
     CameraPublisher() : Node("camera_publisher"), frame_pub(nullptr) {
-        frame_pub =
-            this->create_publisher<sensor_msgs::msg::CompressedImage>("camera/compressed", 10);
+        // get camera_id  and port
+        this->declare_parameter("camera_id", 0);
+        int camera_id = this->get_parameter("camera_id");
+        int port = camera_id + 8080;
+
+        // Publisher setup
+        std::string topic_name = "camera_" + std::to_string(port) + "/compressed";
+        frame_pub = this->create_publisher<sensor_msgs::msg::CompressedImage>(topic_name, 10);
 
         // Socket setup
         client_socket = socket(AF_INET, SOCK_STREAM, 0);
@@ -33,7 +38,7 @@ class CameraPublisher : public rclcpp::Node {
         }
 
         server_addr.sin_family = AF_INET;
-        server_addr.sin_port = htons(8080);
+        server_addr.sin_port = htons(port);
         server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
         if (connect(client_socket, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
@@ -64,6 +69,7 @@ class CameraPublisher : public rclcpp::Node {
         ssize_t offset = 0;
         ssize_t bytes_received;
 
+        // Receive the image
         while (total_bytes_received < msg_size) {
             bytes_received =
                 recv(client_socket, image.data + offset, msg_size - total_bytes_received, 0);
@@ -75,13 +81,14 @@ class CameraPublisher : public rclcpp::Node {
             offset += bytes_received;
         }
 
+        // Compress the image
         std::vector<uchar> buffer;
         cv::imencode(".jpg", image, buffer);
 
+        // Publish the image
         auto msg = std::make_unique<sensor_msgs::msg::CompressedImage>();
         msg->format = "jpeg";  // Specify the format here
         msg->data.assign(buffer.begin(), buffer.end());
-
         frame_pub->publish(*msg);
     }
 };
