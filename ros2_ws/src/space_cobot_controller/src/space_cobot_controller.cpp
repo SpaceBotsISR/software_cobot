@@ -304,9 +304,9 @@ int main(int argc, char **argv)
 
     auto sub_current_position = node->create_subscription<mocap_interface::msg::MocapMsg>("/space_cobot/mocap_interface/data", 1000, mocapCallback);
 
-    auto imp_values = node->create_publisher<space_cobot_interface::msg::PwmValues>("important_values", 1000);
+    auto imp_values = node->create_publisher<space_cobot_interface::msg::PwmValues>("/important_values", 1000);
 
-    auto current_pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("current_pose", 1000);
+    auto current_pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 1000);
 
     rclcpp::Rate rate(20);
 

@@ -98,6 +98,7 @@ mavros_msgs::msg::State current_state;
 
 void state_cb(const mavros_msgs::msg::State::ConstPtr &msg)
 {
+    std::cout << "state_cb " << std::flush << std::endl;     
     current_state = *msg;
 }
 
@@ -615,27 +616,41 @@ int main(int argc, char **argv)
 
     auto node = rclcpp::Node::make_shared("space_cobot_interface");
 
+    rmw_qos_profile_t custom_qos = rmw_qos_profile_default;
+    custom_qos.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+    custom_qos.depth = 10; // Keep a history of 10 messages
+    custom_qos.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+    custom_qos.durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
+
+    auto  imu_QoS = rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_default), 
+                    rmw_qos_profile_default);
+    // Set the QoS settings
+
+
     // Publishing and Subscribing
 
-    auto state_sub = node->create_subscription<mavros_msgs::msg::State>("mavros/state", 10, state_cb);
+    auto state_sub = node->create_subscription<mavros_msgs::msg::State>("/mavros/state", 10, state_cb);
 
-    auto local_pos_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("mavros/setpoint_position/local", 10);
+    auto local_pos_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("/mavros/setpoint_position/local", 10);
 
     auto actuator_controls_pub = node->create_publisher<mavros_msgs::msg::ActuatorControl>("/mavros/actuator_control", 1000);
 
-    auto arming_client = node->create_client<mavros_msgs::srv::CommandBool>("mavros/cmd/arming");
+    auto arming_client = node->create_client<mavros_msgs::srv::CommandBool>("/mavros/cmd/arming");
 
-    auto set_mode_client = node->create_client<mavros_msgs::srv::SetMode>("mavros/set_mode");
+    auto set_mode_client = node->create_client<mavros_msgs::srv::SetMode>("/mavros/set_mode");
 
     auto fmode = node->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, rc_controlCallback);
 
     auto pwm_values = node->create_subscription<space_cobot_interface::msg::PwmValues>("important_values", 1000, pwmValuesCallback);
 
-    auto imu_values = node->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", 1000, imuCallback);
+    auto imu_values = node->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, imuCallback);
 
     auto pub_force = node->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/force", 1000);
 
     auto pub_torque = node->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/torque", 1000);
+
+    
+
 
     rclcpp::Rate rate(20);
 
@@ -683,13 +698,13 @@ int main(int argc, char **argv)
     vector<double> force_ol(3), torque_ol(3);
 
     /// Initializing the rosparams
-    auto orientation_desired_rpy = node->declare_parameter<vector<double>>("desired_orientation_rpy");
-    auto angular_velocity_desired = node->declare_parameter<vector<double>>("desired_angular_velocity");
-    auto position_desired = node->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
-    auto velocity_desired = node->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
-    auto incremental = node->declare_parameter<double>("incremental_mode");
-    auto force_ol1 = node->declare_parameter<vector<double>>("force_ol");
-    auto torque_ol2 = node->declare_parameter<vector<double>>("moment_ol");
+    auto _orientation_desired_rpy = node->declare_parameter<vector<double>>("desired_orientation_rpy", orientation_desired_rpy);
+    auto _angular_velocity_desired = node->declare_parameter<vector<double>>("desired_angular_velocity", angular_velocity_desired);
+    auto _position_desired = node->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
+    auto _velocity_desired = node->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
+    auto _incremental = node->declare_parameter<int>("incremental_mode",incremental);
+    auto _force_ol1 = node->declare_parameter<vector<double>>("force_ol",  force_ol);
+    auto _torque_ol2 = node->declare_parameter<vector<double>>("moment_ol", torque_ol);
 
     while (rclcpp::ok())
     {
