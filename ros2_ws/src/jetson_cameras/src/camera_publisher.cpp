@@ -23,11 +23,12 @@ class CameraPublisher : public rclcpp::Node {
     CameraPublisher() : Node("camera_publisher"), frame_pub(nullptr) {
         // get camera_id  and port
         this->declare_parameter("camera_id", 0);
-        int camera_id = this->get_parameter("camera_id");
+        int camera_id;
+        this->get_parameter("camera_id", camera_id);
         int port = camera_id + 8080;
 
         // Publisher setup
-        std::string topic_name = "camera_" + std::to_string(port) + "/compressed";
+        std::string topic_name = "camera_" + std::to_string(camera_id) + "/compressed";
         frame_pub = this->create_publisher<sensor_msgs::msg::CompressedImage>(topic_name, 10);
 
         // Socket setup

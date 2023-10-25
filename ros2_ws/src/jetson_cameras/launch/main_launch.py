@@ -1,26 +1,25 @@
 from launch import LaunchDescription
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-
+from ament_index_python.packages import get_package_share_directory
+import os
 
 def generate_launch_description():
+    jetson_cameras_dir = get_package_share_directory('jetson_cameras')
+
     return LaunchDescription(
         [
-            # Include camera0_launch.py
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource("camera0_launch.py"),
+                PythonLaunchDescriptionSource(jetson_cameras_dir + '/launch/camera0_launch.py'),
             ),
-            # Include camera1_launch.py
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource("camera1_launch.py"),
+                PythonLaunchDescriptionSource(jetson_cameras_dir + '/launch/camera1_launch.py'),
             ),
-            # Include camera2_launch.py
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource("camera2_launch.py"),
+                PythonLaunchDescriptionSource(jetson_cameras_dir + '/launch/camera2_launch.py'),
             ),
-            # Include camera3_launch.py
             IncludeLaunchDescription(
-                PythonLaunchDescriptionSource("camera3_launch.py"),
+                PythonLaunchDescriptionSource(jetson_cameras_dir + '/launch/camera3_launch.py'),
             ),
         ]
     )
