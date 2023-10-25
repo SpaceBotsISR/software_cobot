@@ -13,7 +13,17 @@
 
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
+<<<<<<< HEAD
+<<<<<<< HEAD
   <depend>opencv2</depend>
+=======
+  <depend>cv_bridge</depend>
+  <depend>OpenCV</depend>
+>>>>>>> camera ros2
+=======
+  <!-- <depend>cv_bridge</depend> -->
+  <!-- <depend>OpenCV</depend> -->
+>>>>>>> camera_publisher now compiles
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
