@@ -1,18 +1,8 @@
 #include <arpa/inet.h>
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-#include <cv_bridge/cv_bridge.h>
-    >>>>>>> camera ros2
-=======
-// #include <cv_bridge/cv_bridge.h>
->>>>>>> camera_publisher now compiles
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-    <<<<<<< HEAD
-<<<<<<< HEAD
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/opencv.hpp>
@@ -26,10 +16,9 @@
 #define DISPLAY_HEIGHT 540
 #define FRAMERATE 30
 #define FLIP_METHOD 0
-    <<<<<<< HEAD
 #define FRAME_SIZE DISPLAY_WIDTH* DISPLAY_HEIGHT * 3
 
-    class CameraPublisher : public rclcpp::Node {
+class CameraPublisher : public rclcpp::Node {
    public:
     CameraPublisher() : Node("camera_publisher"), frame_pub(nullptr) {
         // get camera_id  and port
@@ -60,22 +49,9 @@
 
         RCLCPP_INFO(this->get_logger(), "Connected to server.");
 
-<<<<<<< HEAD
-<<<<<<< HEAD
         timer_ =
             this->create_wall_timer(std::chrono::milliseconds(30),
                                     std::bind(&CameraPublisher::image_publisher_callback, this));
-=======
-        // Use a timer to control the rate of frame reading
-        timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(1000 / FRAMERATE),
-            std::bind(&CameraPublisher::read_and_publish, this, FRAME_SIZE));
->>>>>>> camera ros2
-=======
-        timer_ =
-            this->create_wall_timer(std::chrono::milliseconds(30),
-                                    std::bind(&CameraPublisher::image_publisher_callback, this));
->>>>>>> camera_publisher now compiles
     }
 
     ~CameraPublisher() { close(client_socket); }
@@ -83,36 +59,12 @@
    private:
     int client_socket;
     struct sockaddr_in server_addr;
-<<<<<<< HEAD
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr frame_pub;
     rclcpp::TimerBase::SharedPtr timer_;
 
     void image_publisher_callback() {
         ssize_t msg_size = FRAME_SIZE;
         cv::Mat image(DISPLAY_HEIGHT, DISPLAY_WIDTH, CV_8UC3);
-=======
-    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr frame_pub;
-    rclcpp::TimerBase::SharedPtr timer_;
-
-<<<<<<< HEAD
-    void read_and_publish(ssize_t msg_size) {
-        cv::Mat frame(DISPLAY_HEIGHT, DISPLAY_WIDTH, CV_8UC3);
-        char* buffer = new char[msg_size];
->>>>>>> camera ros2
-=======
-    void image_publisher_callback() {
-        ssize_t msg_size = FRAME_SIZE;
-        auto msg = std::make_unique<sensor_msgs::msg::Image>();
-
-        // The image is in BGR8 format
-        msg->encoding = "bgr8";
-        msg->width = DISPLAY_WIDTH;    // Use defined constants for width
-        msg->height = DISPLAY_HEIGHT;  // Use defined constants for height
-        msg->step = msg->width * 3;    // 3 bytes per pixel for BGR8
-
-        // Resize data to fit our image content
-        msg->data.resize(msg_size);
->>>>>>> camera_publisher now compiles
 
         ssize_t total_bytes_received = 0;
         ssize_t offset = 0;
@@ -121,22 +73,11 @@
         // Receive the image
         while (total_bytes_received < msg_size) {
             bytes_received =
-<<<<<<< HEAD
-<<<<<<< HEAD
                 recv(client_socket, image.data + offset, msg_size - total_bytes_received, 0);
-=======
-                recv(client_socket, buffer + offset, msg_size - total_bytes_received, 0);
-
->>>>>>> camera ros2
-=======
-                recv(client_socket, msg->data.data() + offset, msg_size - total_bytes_received, 0);
->>>>>>> camera_publisher now compiles
             if (bytes_received <= 0) {
                 std::cerr << "Connection closed or error" << std::endl;
                 exit(1);
             }
-<<<<<<< HEAD
-<<<<<<< HEAD
             total_bytes_received += bytes_received;
             offset += bytes_received;
         }
@@ -150,23 +91,8 @@
         msg->format = "jpeg";  // Specify the format here
         msg->data.assign(buffer.begin(), buffer.end());
         frame_pub->publish(*msg);
-=======
-
-=======
->>>>>>> camera_publisher now compiles
-        total_bytes_received += bytes_received;
-        offset += bytes_received;
     }
-
-<<<<<<< HEAD
-    delete[] buffer;
->>>>>>> camera ros2
-=======
-            frame_pub->publish(*msg);  // Use frame_pub here
->>>>>>> camera_publisher now compiles
-}
-}
-;
+};
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
