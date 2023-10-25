@@ -33,7 +33,7 @@ std::string gstreamer_pipeline(int sensor_id) {
            "video/x-raw, format=(string)BGR ! appsink";
 }
 
-class VideoServer {
+class VideoServer : sensor_id(sensor_id) {
    public:
     VideoServer(int port, int sensor_id) {
         init_socket(port);
