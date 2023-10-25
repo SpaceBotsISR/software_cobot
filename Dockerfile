@@ -4,6 +4,7 @@ FROM arm64v8/ros:humble
 # Install packages
 RUN apt-get update && apt-get install -y \
     # ROS:
+ros-humble-mavros \
     ros-humble-teleop-twist-keyboard \
     ros-humble-rviz2 \
     ros-humble-rviz-common \
@@ -31,8 +32,7 @@ RUN apt-get update && apt-get install -y \
     libopencv-dev \
     python3-opencv && \
     rm -rf /var/lib/apt/lists/* && \
-    pip install opencv-python
-
+    pip install opencv-python  
 
 # Add environment setup to the user's .bashrc
 RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
