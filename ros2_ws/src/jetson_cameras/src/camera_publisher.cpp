@@ -20,18 +20,40 @@
 
 class CameraPublisher : public rclcpp::Node {
    public:
-    CameraPublisher() : Node("camera_publisher"), frame_pub(nullptr) {
-        // get camera_id  and port
+    CameraPublisher() : Node("camera_publisher") {
+        init_parameters();
+        init_publishers();
+        init_socket();
+        init_timer();
+    }
+
+    ~CameraPublisher() { close(client_socket); }
+
+   private:
+    int client_socket;
+    struct sockaddr_in server_addr;
+    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_frame_pub;
+    rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr raw_frame_pub;
+    rclcpp::TimerBase::SharedPtr timer_;
+    int camera_id;
+
+    void init_parameters() {
         this->declare_parameter("camera_id", 0);
-        int camera_id;
         this->get_parameter("camera_id", camera_id);
+    }
+
+    void init_publishers() {
+        std::string compressed_topic_name = "camera_" + std::to_string(camera_id) + "/compressed";
+        compressed_frame_pub =
+            this->create_publisher<sensor_msgs::msg::CompressedImage>(compressed_topic_name, 10);
+
+        std::string raw_topic_name = "camera_" + std::to_string(camera_id) + "/image_raw";
+        raw_frame_pub = this->create_publisher<sensor_msgs::msg::Image>(raw_topic_name, 10);
+    }
+
+    void init_socket() {
         int port = camera_id + 8080;
 
-        // Publisher setup
-        std::string topic_name = "camera_" + std::to_string(camera_id) + "/compressed";
-        frame_pub = this->create_publisher<sensor_msgs::msg::CompressedImage>(topic_name, 10);
-
-        // Socket setup
         client_socket = socket(AF_INET, SOCK_STREAM, 0);
         if (client_socket < 0) {
             RCLCPP_ERROR(this->get_logger(), "Error creating socket!");
@@ -48,21 +70,21 @@ class CameraPublisher : public rclcpp::Node {
         }
 
         RCLCPP_INFO(this->get_logger(), "Connected to server.");
+    }
 
+    void init_timer() {
         timer_ =
             this->create_wall_timer(std::chrono::milliseconds(30),
                                     std::bind(&CameraPublisher::image_publisher_callback, this));
     }
 
-    ~CameraPublisher() { close(client_socket); }
-
-   private:
-    int client_socket;
-    struct sockaddr_in server_addr;
-    rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr frame_pub;
-    rclcpp::TimerBase::SharedPtr timer_;
-
     void image_publisher_callback() {
+        cv::Mat image = receive_image_from_socket();
+        publish_raw_image(image);
+        publish_compressed_image(image);
+    }
+
+    cv::Mat receive_image_from_socket() {
         ssize_t msg_size = FRAME_SIZE;
         cv::Mat image(DISPLAY_HEIGHT, DISPLAY_WIDTH, CV_8UC3);
 
@@ -70,7 +92,6 @@ class CameraPublisher : public rclcpp::Node {
         ssize_t offset = 0;
         ssize_t bytes_received;
 
-        // Receive the image
         while (total_bytes_received < msg_size) {
             bytes_received =
                 recv(client_socket, image.data + offset, msg_size - total_bytes_received, 0);
@@ -82,15 +103,30 @@ class CameraPublisher : public rclcpp::Node {
             offset += bytes_received;
         }
 
-        // Compress the image
+        return image;
+    }
+
+    void publish_raw_image(const cv::Mat& image) {
+        auto raw_msg = std::make_unique<sensor_msgs::msg::Image>();
+        raw_msg->header.stamp = this->now();
+        raw_msg->height = image.rows;
+        raw_msg->width = image.cols;
+        raw_msg->encoding = "bgr8";
+        raw_msg->step = image.cols * image.elemSize();
+        size_t size = image.rows * image.step;
+        raw_msg->data.resize(size);
+        std::memcpy(&raw_msg->data[0], image.data, size);
+        raw_frame_pub->publish(*raw_msg);
+    }
+
+    void publish_compressed_image(const cv::Mat& image) {
         std::vector<uchar> buffer;
         cv::imencode(".jpg", image, buffer);
 
-        // Publish the image
-        auto msg = std::make_unique<sensor_msgs::msg::CompressedImage>();
-        msg->format = "jpeg";  // Specify the format here
-        msg->data.assign(buffer.begin(), buffer.end());
-        frame_pub->publish(*msg);
+        auto compressed_msg = std::make_unique<sensor_msgs::msg::CompressedImage>();
+        compressed_msg->format = "jpeg";
+        compressed_msg->data.assign(buffer.begin(), buffer.end());
+        compressed_frame_pub->publish(*compressed_msg);
     }
 };
 
