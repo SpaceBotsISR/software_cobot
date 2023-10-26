@@ -24,7 +24,7 @@ class CameraPublisher : public rclcpp::Node {
         init_parameters();
         init_publishers();
         init_socket();
-        init_timer();
+        init_timers();
     }
 
     ~CameraPublisher() { close(client_socket); }
@@ -34,7 +34,9 @@ class CameraPublisher : public rclcpp::Node {
     struct sockaddr_in server_addr;
     rclcpp::Publisher<sensor_msgs::msg::CompressedImage>::SharedPtr compressed_frame_pub;
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr raw_frame_pub;
-    rclcpp::TimerBase::SharedPtr timer_;
+    rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_pub;
+    rclcpp::TimerBase::SharedPtr timer1_;
+    rclcpp::TimerBase::SharedPtr timer2_;
     int camera_id;
 
     void init_parameters() {
@@ -43,12 +45,18 @@ class CameraPublisher : public rclcpp::Node {
     }
 
     void init_publishers() {
-        std::string compressed_topic_name = "camera_" + std::to_string(camera_id) + "/compressed";
+        std::string compressed_topic_name =
+            "/camera_" + std::to_string(camera_id) + "/image_raw/compressed";
         compressed_frame_pub =
             this->create_publisher<sensor_msgs::msg::CompressedImage>(compressed_topic_name, 10);
 
-        std::string raw_topic_name = "camera_" + std::to_string(camera_id) + "/image_raw";
+        std::string raw_topic_name = "/camera_" + std::to_string(camera_id) + "/image_raw";
         raw_frame_pub = this->create_publisher<sensor_msgs::msg::Image>(raw_topic_name, 10);
+
+        std::string camera_info_topic_name =
+            "/camera_" + std::to_string(camera_id) + "/camera_info";
+        camera_info_pub =
+            this->create_publisher<sensor_msgs::msg::CameraInfo>(camera_info_topic_name, 1);
     }
 
     void init_socket() {
@@ -72,11 +80,16 @@ class CameraPublisher : public rclcpp::Node {
         RCLCPP_INFO(this->get_logger(), "Connected to server.");
     }
 
-    void init_timer() {
-        timer_ =
+    void init_timers() {
+        timer1_ =
             this->create_wall_timer(std::chrono::milliseconds(30),
                                     std::bind(&CameraPublisher::image_publisher_callback, this));
+
+        timer2_ = this->create_wall_timer(
+            std::chrono::milliseconds(1000),
+            std::bind(&CameraPublisher::camera_info_publisher_callback, this));
     }
+    void camera_info_publisher_callback() {}
 
     void image_publisher_callback() {
         cv::Mat image = receive_image_from_socket();
