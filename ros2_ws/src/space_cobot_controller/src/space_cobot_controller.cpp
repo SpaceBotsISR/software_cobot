@@ -33,6 +33,8 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 #include <tf2/LinearMath/Scalar.h>
 
+#include "space_cobot_controller.hpp"
+
 #define pi 3.1415926535897932384
 #define POSITION 0
 
@@ -286,35 +288,39 @@ int main(int argc, char **argv)
 
     rclcpp::init(argc, argv);
 
-    auto node = rclcpp::Node::make_shared("space_cobot_controller");
+    rclcpp::spin(std::make_shared<SpaceCobotController_>());
+
+    return 0;
+}
+
+SpaceCobotController_::SpaceCobotController_() : Node("SpaceCobotController")
+{
 
     // Publishing and Subscribing
 
-
-    auto imu_QoS = rclcpp::QoS (10);
-    imu_QoS.best_effort(); 
-    imu_QoS.durability_volatile(); 
-
+    auto imu_QoS = rclcpp::QoS(10);
+    imu_QoS.best_effort();
+    imu_QoS.durability_volatile();
 
     // Subscribers to get target pose and twist
-    auto sub_des_pose = node->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_pose", 10, desiredPoseCallback);
-    auto sub_des_twist = node->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_twist", 10, desiredTwistCallback);
+    auto sub_des_pose = this->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_pose", 10, desiredPoseCallback);
+    auto sub_des_twist = this->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_twist", 10, desiredTwistCallback);
     // Subscribe the RC controller inputs
-    auto fmode = node->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, rc_controlCallback);
+    auto fmode = this->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, rc_controlCallback);
 
     // Subscribers to get current pose
-    // TODO(ALG): Shift this to values from the Mocap or the localization node.
+    // TODO(ALG): Shift this to values from the Mocap or the localization this.
     // TODO(ALG): Get the position and orientation values from the rostopic data itself.
-    auto sub_current_pose = node->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, IMUCallback);
-    // ros::Subscriber sub_vrpn = nh.subscribe("/vrpn_client_node/space_cobot_gt/pose", vrpnCallback);
+    auto sub_current_pose = this->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, IMUCallback);
+    // ros::Subscriber sub_vrpn = nh.subscribe("/vrpn_client_this/space_cobot_gt/pose", vrpnCallback);
 
-    auto sub_current_position = node->create_subscription<mocap_interface::msg::MocapMsg>("/space_cobot/mocap_interface/data", 1000, mocapCallback);
+    auto sub_current_position = this->create_subscription<mocap_interface::msg::MocapMsg>("/space_cobot/mocap_interface/data", 1000, mocapCallback);
 
-    auto imp_values = node->create_publisher<space_cobot_interface::msg::PwmValues>("/important_values", 1000);
+    auto imp_values = this->create_publisher<space_cobot_interface::msg::PwmValues>("/important_values", 1000);
 
-    auto current_pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 1000);
+    auto current_pose_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 1000);
 
-    rclcpp::Rate rate(1000);
+    rclcpp::Rate rate(200);
 
     // Force and Moment variables
     Eigen::Vector3d force(0, 0, 0);
@@ -337,35 +343,35 @@ int main(int argc, char **argv)
     /// Initialising the rosparams
     /// commenting position and velocity rosparam for now for safety
     /// this is incorporated in the getGains() where these are made into a diagonal matrix for using in the Moment function
-    auto _orientation_desired_rpy = node->declare_parameter<vector<double>>("desired_orientation_rpy", orientation_desired_rpy);
-    auto _angular_velocity_desired = node->declare_parameter<vector<double>>("desired_angular_velocity", angular_velocity_desired);
-    auto _position_desired = node->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
-    auto _velocity_desired = node->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
-    auto _att_p_gain = node->declare_parameter<vector<double>>("AttPGain", att_p_gain);
-    auto _att_i_gain = node->declare_parameter<vector<double>>("AttIGain", att_i_gain);
-    auto _att_d_gain = node->declare_parameter<vector<double>>("AttDGain", att_d_gain);
-    auto _time_step = node->declare_parameter<float>("TimeStep", time_step);
-    auto _force_mode = node->declare_parameter<bool>("ForceMode", force_mode);
-    auto _pos_p_gain = node->declare_parameter<vector<double>>("PosPGain", pos_p_gain);
-    auto _pos_i_gain = node->declare_parameter<vector<double>>("PosIGain", pos_i_gain);
-    auto _pos_d_gain = node->declare_parameter<vector<double>>("PosDGain", pos_d_gain);
+    auto _orientation_desired_rpy = this->declare_parameter<vector<double>>("desired_orientation_rpy", orientation_desired_rpy);
+    auto _angular_velocity_desired = this->declare_parameter<vector<double>>("desired_angular_velocity", angular_velocity_desired);
+    auto _position_desired = this->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
+    auto _velocity_desired = this->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
+    auto _att_p_gain = this->declare_parameter<vector<double>>("AttPGain", att_p_gain);
+    auto _att_i_gain = this->declare_parameter<vector<double>>("AttIGain", att_i_gain);
+    auto _att_d_gain = this->declare_parameter<vector<double>>("AttDGain", att_d_gain);
+    auto _time_step = this->declare_parameter<float>("TimeStep", time_step);
+    auto _force_mode = this->declare_parameter<bool>("ForceMode", force_mode);
+    auto _pos_p_gain = this->declare_parameter<vector<double>>("PosPGain", pos_p_gain);
+    auto _pos_i_gain = this->declare_parameter<vector<double>>("PosIGain", pos_i_gain);
+    auto _pos_d_gain = this->declare_parameter<vector<double>>("PosDGain", pos_d_gain);
 
     while (rclcpp::ok())
     {
         /// getting all the rosparams
-        node->get_parameter("desired_position", _position_desired);
-        node->get_parameter("desired_velocity", _velocity_desired);
-        node->get_parameter("desired_orientation_rpy", _orientation_desired_rpy);
-        node->get_parameter("desired_angular_velocity", _angular_velocity_desired);
-        node->get_parameter("AttPGain", _att_p_gain);
-        node->get_parameter("AttIGain", _att_i_gain);
-        node->get_parameter("AttDGain", _att_d_gain);
-        node->get_parameter("TimeStep", _time_step);
-        node->get_parameter("ForceMode", _force_mode);
+        this->get_parameter("desired_position", _position_desired);
+        this->get_parameter("desired_velocity", _velocity_desired);
+        this->get_parameter("desired_orientation_rpy", _orientation_desired_rpy);
+        this->get_parameter("desired_angular_velocity", _angular_velocity_desired);
+        this->get_parameter("AttPGain", _att_p_gain);
+        this->get_parameter("AttIGain", _att_i_gain);
+        this->get_parameter("AttDGain", _att_d_gain);
+        this->get_parameter("TimeStep", _time_step);
+        this->get_parameter("ForceMode", _force_mode);
 
-        node->get_parameter("PosPGain", _pos_p_gain);
-        node->get_parameter("PosIGain", _pos_i_gain);
-        node->get_parameter("PosDGain", _pos_d_gain);
+        this->get_parameter("PosPGain", _pos_p_gain);
+        this->get_parameter("PosIGain", _pos_i_gain);
+        this->get_parameter("PosDGain", _pos_d_gain);
 
         // Getting target orientation from the rosparam to global variable quaternion
         getTargetOrientation(orientation_desired_rpy);
@@ -426,7 +432,7 @@ int main(int argc, char **argv)
         }
 
         space_cobot_interface::msg::PwmValues Data;
-        Data.header.stamp = node->get_clock()->now();
+        Data.header.stamp = this->get_clock()->now();
 
         /// function assigns the message "Data" all the important values for reference
         Eigen::Vector3d err_Quat;
@@ -438,7 +444,7 @@ int main(int argc, char **argv)
         imp_values->publish(Data);
 
         geometry_msgs::msg::PoseStamped current_pose_msg;
-        current_pose_msg.header.stamp = node->get_clock()->now();
+        current_pose_msg.header.stamp = this->get_clock()->now();
         current_pose_msg.pose.position.x = position_current[0];
         current_pose_msg.pose.position.y = position_current[1];
         current_pose_msg.pose.position.z = position_current[2];
@@ -450,9 +456,7 @@ int main(int argc, char **argv)
 
         current_pose_pub->publish(current_pose_msg);
 
-        rclcpp::spin_some(node);
+        // rclcpp::spin_some(this);
         rate.sleep();
     }
-
-    return 0;
 }
