@@ -98,13 +98,13 @@ mavros_msgs::msg::State current_state;
 
 void state_cb(const mavros_msgs::msg::State::ConstPtr &msg)
 {
-    std::cout << "state_cb " << std::flush << std::endl;     
     current_state = *msg;
 }
 
 void rc_controlCallback(const mavros_msgs::msg::RCIn::ConstPtr &msg)
 {
     pwm_flight_mode = msg->channels[5];
+    cout << "pwd flight mode " << pwm_flight_mode << endl; 
 
     toggle_position_orientation = msg->channels[2];
     toggle_world_body_frames = msg->channels[7];
@@ -616,16 +616,20 @@ int main(int argc, char **argv)
 
     auto node = rclcpp::Node::make_shared("space_cobot_interface");
 
-    rmw_qos_profile_t custom_qos = rmw_qos_profile_default;
-    custom_qos.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
-    custom_qos.depth = 10; // Keep a history of 10 messages
-    custom_qos.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
-    custom_qos.durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
+//    rmw_qos_profile_t custom_qos = rmw_qos_profile_default;
+//    custom_qos.
+//    custom_qos.history = RMW_QOS_POLICY_HISTORY_KEEP_LAST;
+//    custom_qos.depth = 10; // Keep a history of 10 messages
+//    custom_qos.reliability = RMW_QOS_POLICY_RELIABILITY_BEST_EFFORT;
+//    custom_qos.durability = RMW_QOS_POLICY_DURABILITY_VOLATILE;
 
-    auto  imu_QoS = rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_default), 
-                    rmw_qos_profile_default);
+   // auto  imu_QoS = rclcpp::QoS(rclcpp::QoSInitialization::from_rmw(rmw_qos_profile_default), 
+   //                 rmw_qos_profile_default);
     // Set the QoS settings
 
+    auto imu_QoS = rclcpp::QoS (10);
+    imu_QoS.best_effort(); 
+    imu_QoS.durability_volatile(); 
 
     // Publishing and Subscribing
 
@@ -641,7 +645,7 @@ int main(int argc, char **argv)
 
     auto fmode = node->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, rc_controlCallback);
 
-    auto pwm_values = node->create_subscription<space_cobot_interface::msg::PwmValues>("important_values", 1000, pwmValuesCallback);
+    auto pwm_values = node->create_subscription<space_cobot_interface::msg::PwmValues>("/important_values", 1000, pwmValuesCallback);
 
     auto imu_values = node->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, imuCallback);
 
@@ -652,7 +656,7 @@ int main(int argc, char **argv)
     
 
 
-    rclcpp::Rate rate(20);
+    rclcpp::Rate rate(1000);
 
     Eigen::Quaterniond current_orientation_manual_absolute;
     Eigen::Vector3d current_position_manual_absolute;
