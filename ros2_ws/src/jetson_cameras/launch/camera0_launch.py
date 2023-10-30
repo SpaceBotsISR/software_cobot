@@ -9,7 +9,7 @@ def generate_launch_description():
                 package="jetson_cameras",
                 executable="camera_publisher",
                 name="camera_publisher0",
-                output="screen",
+                #output="screen",
                 parameters=[{"camera_id": 0}],
             )
         ]
