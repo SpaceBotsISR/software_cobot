@@ -290,6 +290,12 @@ int main(int argc, char **argv)
 
     // Publishing and Subscribing
 
+
+    auto imu_QoS = rclcpp::QoS (10);
+    imu_QoS.best_effort(); 
+    imu_QoS.durability_volatile(); 
+
+
     // Subscribers to get target pose and twist
     auto sub_des_pose = node->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_pose", 10, desiredPoseCallback);
     auto sub_des_twist = node->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_twist", 10, desiredTwistCallback);
@@ -299,7 +305,7 @@ int main(int argc, char **argv)
     // Subscribers to get current pose
     // TODO(ALG): Shift this to values from the Mocap or the localization node.
     // TODO(ALG): Get the position and orientation values from the rostopic data itself.
-    auto sub_current_pose = node->create_subscription<sensor_msgs::msg::Imu>("mavros/imu/data", 1000, IMUCallback);
+    auto sub_current_pose = node->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, IMUCallback);
     // ros::Subscriber sub_vrpn = nh.subscribe("/vrpn_client_node/space_cobot_gt/pose", vrpnCallback);
 
     auto sub_current_position = node->create_subscription<mocap_interface::msg::MocapMsg>("/space_cobot/mocap_interface/data", 1000, mocapCallback);
@@ -308,7 +314,7 @@ int main(int argc, char **argv)
 
     auto current_pose_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 1000);
 
-    rclcpp::Rate rate(20);
+    rclcpp::Rate rate(1000);
 
     // Force and Moment variables
     Eigen::Vector3d force(0, 0, 0);
