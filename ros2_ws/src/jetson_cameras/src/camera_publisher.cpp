@@ -14,8 +14,6 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 
-#define CAPTURE_WIDTH 1920
-#define CAPTURE_HEIGHT 1080
 #define DISPLAY_WIDTH 960
 #define DISPLAY_HEIGHT 540
 #define FRAMERATE 30
@@ -65,10 +63,11 @@ class CameraPublisher : public rclcpp::Node {
         this->get_parameter(param_name + "rectification_matrix.data", rectification_matrix);
         this->get_parameter(param_name + "projection_matrix.data", projection_matrix);
 
-        camera_info_msg_->k = camera_matrix;
-        camera_info_msg_->d = distortion_coefficients;
-        camera_info_msg_->r = rectification_matrix;
-        camera_info_msg_->p = projection_matrix;
+        // Copying the params to the info msg
+        std::copy(camera_matrix.begin(), camera_matrix.end(), camera_info_msg_->k.begin());
+        std::copy(distortion_coefficients.begin(), distortion_coefficients.end(), camera_info_msg_->d.begin());
+        std::copy(camera_matrix.begin(), rectification_matrix.end(), camera_info_msg_->r.begin());
+        std::copy(projection_matrix.begin(), projection_matrix.end(), camera_info_msg_->p.begin());
     }
 
     void init_publishers() {
