@@ -1,3 +1,6 @@
+#include <rclcpp/rclcpp.hpp>
+#include <rclcpp/parameter.hpp>
+
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -6,11 +9,10 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/opencv.hpp>
-#include <rclcpp/rclcpp.hpp>
+
 #include <sensor_msgs/msg/compressed_image.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
-
 
 #define CAPTURE_WIDTH 1920
 #define CAPTURE_HEIGHT 1080
@@ -39,11 +41,34 @@ class CameraPublisher : public rclcpp::Node {
     rclcpp::Publisher<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_pub;
     rclcpp::TimerBase::SharedPtr timer1_;
     rclcpp::TimerBase::SharedPtr timer2_;
+    sensor_msgs::msg::CameraInfo::SharedPtr camera_info_msg_;
     int camera_id;
 
     void init_parameters() {
+        // Camera id parameters created in the launchfile 
         this->declare_parameter("camera_id", 0);
         this->get_parameter("camera_id", camera_id);
+
+        // Getting camera info from yaml
+        std::string param_name = "camera" + std::to_string(camera_id) + ".";
+        camera_info_msg_ = std::make_shared<sensor_msgs::msg::CameraInfo>();
+
+        int width, height;
+        this->get_parameter(param_name + "image.width", width);
+        this->get_parameter(param_name + "image.height", height);
+        camera_info_msg_->width = width;
+        camera_info_msg_->height = height;
+
+        std::vector<double> camera_matrix, distortion_coefficients, rectification_matrix, projection_matrix;
+        this->get_parameter(param_name + "camera_matrix.data", camera_matrix);
+        this->get_parameter(param_name + "distortion.k", distortion_coefficients);
+        this->get_parameter(param_name + "rectification_matrix.data", rectification_matrix);
+        this->get_parameter(param_name + "projection_matrix.data", projection_matrix);
+
+        camera_info_msg_->k = camera_matrix;
+        camera_info_msg_->d = distortion_coefficients;
+        camera_info_msg_->r = rectification_matrix;
+        camera_info_msg_->p = projection_matrix;
     }
 
     void init_publishers() {
@@ -91,7 +116,11 @@ class CameraPublisher : public rclcpp::Node {
             std::chrono::milliseconds(1000),
             std::bind(&CameraPublisher::camera_info_publisher_callback, this));
     }
-    void camera_info_publisher_callback() {}
+    void camera_info_publisher_callback() {
+        camera_info_msg_->header.stamp = this->now();
+        camera_info_msg_->header.frame_id = "camera_frame_" + std::to_string(camera_id);
+        camera_info_pub->publish(*camera_info_msg_);
+    }
 
     void image_publisher_callback() {
         cv::Mat image = receive_image_from_socket();
