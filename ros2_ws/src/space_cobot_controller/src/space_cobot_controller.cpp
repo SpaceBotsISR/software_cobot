@@ -41,12 +41,12 @@
 using namespace std;
 
 // desired pose callback function
-void desiredPoseCallback(const geometry_msgs::msg::PoseStamped::ConstPtr &msg)
+void SpaceCobotController::desiredPoseCallback(const geometry_msgs::msg::PoseStamped::ConstPtr &msg)
 {
 }
 
 // desired twist callback function
-void desiredTwistCallback(const geometry_msgs::msg::PoseStamped::ConstPtr &msg)
+void SpaceCobotController::desiredTwistCallback(const geometry_msgs::msg::PoseStamped::ConstPtr &msg)
 {
 }
 
@@ -83,7 +83,7 @@ bool force_mode = false;
 
 int kill_switch = 1099;
 
-void IMUCallback(const sensor_msgs::msg::Imu::ConstPtr &msg)
+void SpaceCobotController::IMUCallback(const sensor_msgs::msg::Imu::ConstPtr &msg)
 {
 
     orientation_current.x() = msg->orientation.x;
@@ -96,7 +96,7 @@ void IMUCallback(const sensor_msgs::msg::Imu::ConstPtr &msg)
     angular_velocity_current[2] = msg->angular_velocity.z;
 }
 
-void mocapCallback(const mocap_interface::msg::MocapMsg &msg)
+void SpaceCobotController::mocapCallback(const mocap_interface::msg::MocapMsg &msg)
 {
 
     /*orientation_current.x() = msg.pose.pose.orientation.x;
@@ -144,7 +144,7 @@ void vrpnCallback(const geometry_msgs::msg::PoseStamped::ConstPtr &msg)
     orientation_current.w() = msg->pose.orientation.w;
 }
 
-void rc_controlCallback(const mavros_msgs::msg::RCIn::ConstPtr &msg)
+void SpaceCobotController::rc_controlCallback(const mavros_msgs::msg::RCIn::ConstPtr &msg)
 {
 
     kill_switch = msg->channels[4];
@@ -288,39 +288,40 @@ int main(int argc, char **argv)
 
     rclcpp::init(argc, argv);
 
-    rclcpp::spin(std::make_shared<SpaceCobotController_>());
+    rclcpp::spin(std::make_shared<SpaceCobotController>());
 
     return 0;
 }
 
-SpaceCobotController_::SpaceCobotController_() : Node("SpaceCobotController")
-{
-
-    // Publishing and Subscribing
+void SpaceCobotController::subscriber_and_parameter_declare() {
 
     auto imu_QoS = rclcpp::QoS(10);
     imu_QoS.best_effort();
     imu_QoS.durability_volatile();
 
-    // Subscribers to get target pose and twist
-    auto sub_des_pose = this->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_pose", 10, desiredPoseCallback);
-    auto sub_des_twist = this->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_twist", 10, desiredTwistCallback);
-    // Subscribe the RC controller inputs
-    auto fmode = this->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, rc_controlCallback);
+    sub_des_pose = this->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_pose", 10, std::bind(&SpaceCobotController::desiredPoseCallback, this, _1));
+    sub_des_twist = this->create_subscription<geometry_msgs::msg::PoseStamped>("/space_cobot_interface/desired_twist", 10, std::bind(&SpaceCobotController::desiredTwistCallback, this, _1));
+    fmode = this->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, std::bind(&SpaceCobotController::rc_controlCallback, this, _1));
+    sub_current_pose = this->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, std::bind(&SpaceCobotController::IMUCallback, this, _1));
+    sub_current_position = this->create_subscription<mocap_interface::msg::MocapMsg>("/space_cobot/mocap_interface/data", 1000, std::bind(&SpaceCobotController::mocapCallback, this, _1));
 
-    // Subscribers to get current pose
-    // TODO(ALG): Shift this to values from the Mocap or the localization this.
-    // TODO(ALG): Get the position and orientation values from the rostopic data itself.
-    auto sub_current_pose = this->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, IMUCallback);
-    // ros::Subscriber sub_vrpn = nh.subscribe("/vrpn_client_this/space_cobot_gt/pose", vrpnCallback);
+    imp_values = this->create_publisher<space_cobot_interface::msg::PwmValues>("/important_values", 1000);
 
-    auto sub_current_position = this->create_subscription<mocap_interface::msg::MocapMsg>("/space_cobot/mocap_interface/data", 1000, mocapCallback);
+    current_pose_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 1000);
+}
 
-    auto imp_values = this->create_publisher<space_cobot_interface::msg::PwmValues>("/important_values", 1000);
+SpaceCobotController::SpaceCobotController() : Node("SpaceCobotController")
+{
+    subscriber_and_parameter_declare();
 
-    auto current_pose_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 1000);
+    run_thread =  std::thread(&SpaceCobotController::run, this);
 
-    rclcpp::Rate rate(200);
+}
+
+void SpaceCobotController::run(){
+
+    // Publishing and Subscribing
+    rclcpp::Rate rate(20);
 
     // Force and Moment variables
     Eigen::Vector3d force(0, 0, 0);
