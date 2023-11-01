@@ -98,12 +98,9 @@ Eigen::Matrix3d rc_Rd;
 /// Declaring MAVROS State
 mavros_msgs::msg::State current_state;
 
-void state_cb(const mavros_msgs::msg::State::ConstPtr &msg)
-{
-    current_state = *msg;
-}
 
-void rc_controlCallback(const mavros_msgs::msg::RCIn::ConstPtr &msg)
+
+void Space_Cobot_Interface::rc_controlCallback(const mavros_msgs::msg::RCIn::ConstPtr &msg)
 {
     pwm_flight_mode = msg->channels[5];
     cout << "pwd flight mode " << pwm_flight_mode << endl;
@@ -391,7 +388,7 @@ void manualControl_PositionAbsolute(Eigen::Vector3d current_position_absolute)
 
 vector<double> actuator_pwm_values(6);
 
-void pwmValuesCallback(const space_cobot_interface::msg::PwmValues::ConstPtr &msg)
+void Space_Cobot_Interface::pwmValuesCallback(const space_cobot_interface::msg::PwmValues::ConstPtr &msg)
 {
     for (int i = 0; i < 6; i++)
         actuator_pwm_values[i] = msg->pwm[i];
@@ -405,7 +402,7 @@ void pwmValuesCallback(const space_cobot_interface::msg::PwmValues::ConstPtr &ms
     target_force[2] = msg->force[2];
 }
 
-void imuCallback(const sensor_msgs::msg::Imu::ConstPtr &msg)
+void Space_Cobot_Interface::imuCallback(const sensor_msgs::msg::Imu::ConstPtr &msg)
 {
 
     orientation_current.x() = msg->orientation.x;
@@ -616,41 +613,62 @@ int main(int argc, char **argv)
 
     rclcpp::init(argc, argv);
 
-    rclcpp::spin(std::make_shared<SpaceCobotController>());
+    rclcpp::spin(std::make_shared<Space_Cobot_Interface>());
 }
 
-SpaceCobotController::SpaceCobotController()
-    : Node("SpaceCobotController")
-{
-
+void Space_Cobot_Interface::subscriber_and_parameter_declare() {
     auto imu_QoS = rclcpp::QoS(10);
     imu_QoS.best_effort();
     imu_QoS.durability_volatile();
 
-    // Publishing and Subscribing
+    std::cout << "teste1" << std::flush << std::endl;
 
-    auto state_sub = this->create_subscription<mavros_msgs::msg::State>("/mavros/state", 10, state_cb);
+    this-> state_sub                     = this->create_subscription       <mavros_msgs::msg::State>("/mavros/state", 10, std::bind(&Space_Cobot_Interface::state_cb, this, _1) );
+    this-> fmode                         = this->create_subscription       <mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, std::bind(&Space_Cobot_Interface::rc_controlCallback, this, _1) );
+    this-> pwm_values                    = this->create_subscription       <space_cobot_interface::msg::PwmValues>("/important_values", 1000, std::bind(&Space_Cobot_Interface::pwmValuesCallback, this, _1) );
+    this-> imu_values                    = this->create_subscription       <sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, std::bind(&Space_Cobot_Interface::imuCallback, this, _1) );
 
-    auto local_pos_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/mavros/setpoint_position/local", 10);
+    this-> local_pos_pub                 = this->create_publisher          <geometry_msgs::msg::PoseStamped>("/mavros/setpoint_position/local", 10);
+    this-> actuator_controls_pub         = this->create_publisher          <mavros_msgs::msg::ActuatorControl>("/mavros/actuator_control", 1000);
+    this-> pub_force                     = this->create_publisher          <geometry_msgs::msg::Vector3Stamped>("/open_loop/force", 1000);
+    this-> pub_torque                    = this->create_publisher          <geometry_msgs::msg::Vector3Stamped>("/open_loop/torque", 1000);
+    
+    this-> arming_client                 = this->create_client             <mavros_msgs::srv::CommandBool>("/mavros/cmd/arming");
+    this-> set_mode_client               = this->create_client             <mavros_msgs::srv::SetMode>("/mavros/set_mode");
+    
+    /// Initializing the rosparams
+    this->declare_parameter<vector<double>>("desired_orientation_rpy", orientation_desired_rpy);
+    this->declare_parameter<vector<double>>("desired_angular_velocity", angular_velocity_desired);
+    this->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
+    this->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
+    this->declare_parameter<int>("incremental_mode", incremental);
+    this->declare_parameter<vector<double>>("force_ol", this->force_ol);
+    this->declare_parameter<vector<double>>("moment_ol", this->torque_ol);
+    std::cout << "teste1" << std::flush << std::endl;
 
-    auto actuator_controls_pub = this->create_publisher<mavros_msgs::msg::ActuatorControl>("/mavros/actuator_control", 1000);
+}
 
-    auto arming_client = this->create_client<mavros_msgs::srv::CommandBool>("/mavros/cmd/arming");
+Space_Cobot_Interface::Space_Cobot_Interface()
+    : Node("SpaceCobotController")
+{
+    this->force_ol.resize(3);
+    this->torque_ol.resize(3);
+    this->subscriber_and_parameter_declare(); 
 
-    auto set_mode_client = this->create_client<mavros_msgs::srv::SetMode>("/mavros/set_mode");
+    //this->run_timer = this->create_wall_timer (std::chrono::milliseconds(20), std::bind(&Space_Cobot_Interface::run, this));
 
-    auto fmode = this->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, rc_controlCallback);
+    std::cout << "teste1" << std::flush << std::endl;
 
-    auto pwm_values = this->create_subscription<space_cobot_interface::msg::PwmValues>("/important_values", 1000, pwmValuesCallback);
+    run_thread = std::thread(&Space_Cobot_Interface::run, this);
 
-    auto imu_values = this->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, imuCallback);
+}
 
-    auto pub_force = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/force", 1000);
+    
+void Space_Cobot_Interface::run(){
 
-    auto pub_torque = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/torque", 1000);
 
-    rclcpp::Rate rate(1000);
-
+    std::cout << "run" << std::flush << std::endl;
+    rclcpp::Rate rate(20);
     Eigen::Quaterniond current_orientation_manual_absolute;
     Eigen::Vector3d current_position_manual_absolute;
 
@@ -678,8 +696,6 @@ SpaceCobotController::SpaceCobotController()
     for (int i = 100; rclcpp::ok() && i > 0; --i)
     {
         local_pos_pub->publish(pose);
-
-        rate.sleep();
     }
 
     auto offb_set_mode = std::make_shared<mavros_msgs::srv::SetMode::Request>();
@@ -690,16 +706,8 @@ SpaceCobotController::SpaceCobotController()
     arm_cmd->value = true;
 
     rclcpp::Time last_request = this->get_clock()->now();
-    vector<double> force_ol(3), torque_ol(3);
 
-    /// Initializing the rosparams
-    auto _orientation_desired_rpy = this->declare_parameter<vector<double>>("desired_orientation_rpy", orientation_desired_rpy);
-    auto _angular_velocity_desired = this->declare_parameter<vector<double>>("desired_angular_velocity", angular_velocity_desired);
-    auto _position_desired = this->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
-    auto _velocity_desired = this->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
-    auto _incremental = this->declare_parameter<int>("incremental_mode", incremental);
-    auto _force_ol1 = this->declare_parameter<vector<double>>("force_ol", force_ol);
-    auto _torque_ol2 = this->declare_parameter<vector<double>>("moment_ol", torque_ol);
+
 
     while (rclcpp::ok())
     {
@@ -708,8 +716,8 @@ SpaceCobotController::SpaceCobotController()
         this->get_parameter("desired_orientation_rpy", orientation_desired_rpy);
         this->get_parameter("desired_angular_velocity", angular_velocity_desired);
         this->get_parameter("incremental_mode", incremental);
-        this->get_parameter("force_ol", force_ol);
-        this->get_parameter("moment_ol", torque_ol);
+        this->get_parameter("force_ol", this->force_ol);
+        this->get_parameter("moment_ol", this->torque_ol);
 
         /// Making sure the mode set is always OFFBOARD and its always armed
         if (current_state.mode != "OFFBOARD" &&
@@ -902,31 +910,6 @@ SpaceCobotController::SpaceCobotController()
 
                 OpenLoopForce(force);
             }
-            // Shady ifs that do not make sense
-            //   if(FORCE_MODE){
-            //       force[0] = force_ol[0];
-            //       force[1] = force_ol[1];
-            //       force[2] = force_ol[2];
-            //
-            //      moment[0] = 0;
-            //      moment[1] = 0;
-            //      moment[2] = 0;
-            // }
-            //
-            // if(MOMENT_MODE){
-            //     /*force[0] = 0;
-            //     force[1] = 0;
-            //     force[2] = 0;*/
-            //
-            //     force[0] = force_ol[0];
-            //     force[1] = force_ol[1];
-            //     force[2] = force_ol[2];
-            //
-            //
-            //     moment[0] = torque_ol[0];
-            //     moment[1] = torque_ol[1];
-            //     moment[2] = torque_ol[2];
-            // }
 
             Eigen::VectorXd u = getActuationVector(force, moment);
             double RPM[NUM_MOTORS];
@@ -980,8 +963,15 @@ SpaceCobotController::SpaceCobotController()
         }
 
         /// publishing the actuator pwms (assigned above) to the topic "mavros_msgs::ActuatorControl" controls the motors
-        actuator_controls_pub->publish(actuator_control_msg);
+        this->actuator_controls_pub->publish(actuator_control_msg);
 
         rate.sleep();
     }
+}
+
+
+void Space_Cobot_Interface::state_cb(const mavros_msgs::msg::State::ConstPtr &msg)
+{
+    cout << "state_cb" << flush << endl;
+    current_state = *msg;
 }
