@@ -32,7 +32,10 @@ ros-humble-mavros \
     libopencv-dev \
     python3-opencv && \
     rm -rf /var/lib/apt/lists/* && \
-    pip install opencv-python  
+    pip install \
+    opencv-python \
+    opencv-contrib-python \
+    transforms3d
 
 # Add environment setup to the user's .bashrc
 RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \
