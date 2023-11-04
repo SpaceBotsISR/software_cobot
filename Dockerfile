@@ -17,6 +17,7 @@ ros-humble-mavros \
     ros-humble-camera-calibration-parsers \
     ros-humble-camera-info-manager \
     ros-humble-sensor-msgs \
+    ros-humble-tf-transformations \
     libtf2-dev \
     # Others:
     git \
@@ -35,7 +36,8 @@ ros-humble-mavros \
     pip install \
     opencv-python \
     opencv-contrib-python \
-    transforms3d
+    transforms3d \
+    pip install opencv-contrib-python==4.6.0.66
 
 # Add environment setup to the user's .bashrc
 RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc && \

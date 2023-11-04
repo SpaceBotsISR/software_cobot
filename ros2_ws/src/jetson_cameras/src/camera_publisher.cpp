@@ -129,7 +129,7 @@ class CameraPublisher : public rclcpp::Node {
                                     std::bind(&CameraPublisher::image_publisher_callback, this));
 
         timer2_ = this->create_wall_timer(
-            std::chrono::milliseconds(1000),
+            std::chrono::milliseconds(500),
             std::bind(&CameraPublisher::camera_info_publisher_callback, this));
     }
     void camera_info_publisher_callback() {
