@@ -7,7 +7,7 @@ import os
 
 def generate_launch_description():
     jetson_cameras_dir = get_package_share_directory('jetson_cameras')
-    camera_params = jetson_cameras_dir + "/config/camera0_params.yaml"
+    camera_params = jetson_cameras_dir + "/config/camera_params.yaml"
     print(camera_params)
 
     return LaunchDescription(
