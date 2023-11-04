@@ -8,7 +8,7 @@ def generate_launch_description():
             Node(
                 package="jetson_cameras",
                 executable="camera_publisher",
-                name="camera_publisher0",
+                name="camera_publisher3",
                 output="screen",
                 parameters=[{"camera_id": 3}],
             )

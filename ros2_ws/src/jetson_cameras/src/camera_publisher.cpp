@@ -47,26 +47,43 @@ class CameraPublisher : public rclcpp::Node {
         this->declare_parameter("camera_id", 0);
         this->get_parameter("camera_id", camera_id);
 
-        // Getting camera info from yaml
-        std::string param_name = "camera" + std::to_string(camera_id) + ".";
-        camera_info_msg_ = std::make_shared<sensor_msgs::msg::CameraInfo>();
 
+        // Declaring params
+        std::string param_name = "camera_publisher" + std::to_string(camera_id) + ".";
+        camera_info_msg_ = std::make_shared<sensor_msgs::msg::CameraInfo>();
+        
+        this->declare_parameter("image.width", rclcpp::PARAMETER_INTEGER);
+        this->declare_parameter("image.height", rclcpp::PARAMETER_INTEGER);
+
+        this->declare_parameter("camera_matrix.data", rclcpp::PARAMETER_DOUBLE_ARRAY);
+        this->declare_parameter("distortion_model", rclcpp::PARAMETER_STRING);
+        this->declare_parameter("distortion_coefficients.data", rclcpp::PARAMETER_DOUBLE_ARRAY);
+        this->declare_parameter("rectification_matrix.data", rclcpp::PARAMETER_DOUBLE_ARRAY);
+        this->declare_parameter("projection_matrix.data", rclcpp::PARAMETER_DOUBLE_ARRAY);
+
+
+        // Getting params from yaml
         int width, height;
-        this->get_parameter(param_name + "image.width", width);
-        this->get_parameter(param_name + "image.height", height);
+        this->get_parameter("image.width", width);
+        this->get_parameter("image.height", height);
         camera_info_msg_->width = width;
         camera_info_msg_->height = height;
 
+        std::string distortion_model;
         std::vector<double> camera_matrix, distortion_coefficients, rectification_matrix, projection_matrix;
-        this->get_parameter(param_name + "camera_matrix.data", camera_matrix);
-        this->get_parameter(param_name + "distortion.k", distortion_coefficients);
-        this->get_parameter(param_name + "rectification_matrix.data", rectification_matrix);
-        this->get_parameter(param_name + "projection_matrix.data", projection_matrix);
+        this->get_parameter("camera_matrix.data", camera_matrix);
+        this->get_parameter("distortion_model", distortion_model);
+        this->get_parameter("distortion_coefficients.data", distortion_coefficients);
+        this->get_parameter("rectification_matrix.data", rectification_matrix);
+        this->get_parameter("projection_matrix.data", projection_matrix);
 
         // Copying the params to the info msg
+        camera_info_msg_->distortion_model = distortion_model;
+        for(auto v : distortion_coefficients){
+            camera_info_msg_->d.push_back(v);
+        }
         std::copy(camera_matrix.begin(), camera_matrix.end(), camera_info_msg_->k.begin());
-        std::copy(distortion_coefficients.begin(), distortion_coefficients.end(), camera_info_msg_->d.begin());
-        std::copy(camera_matrix.begin(), rectification_matrix.end(), camera_info_msg_->r.begin());
+        std::copy(rectification_matrix.begin(), rectification_matrix.end(), camera_info_msg_->r.begin());
         std::copy(projection_matrix.begin(), projection_matrix.end(), camera_info_msg_->p.begin());
     }
 
