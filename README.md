@@ -23,8 +23,8 @@ This **docker_launch.sh** script simplifies the management of the created **ROS2
     - If the container exists but is stopped, it will start the existing container.
     - If the container does not exist, it will create and run a new container based on the "scobot_ros2" image.
 
-3. Executing Commands Inside the Container:
-   To execute commands inside the running container, run:
+3. Running a terminal inside the container:
+   To run commands inside the running container, run:
 
     ```
     ./docker_launch.sh exec
