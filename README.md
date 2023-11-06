@@ -1,4 +1,4 @@
-## RO2 with Docker
+## ROS2 with Docker
 
 This **docker_launch.sh** script simplifies the management of the created **ROS2 Docker** container for **Space Cobot** developement. It allows you to build, run, and execute commands inside the container.
 
