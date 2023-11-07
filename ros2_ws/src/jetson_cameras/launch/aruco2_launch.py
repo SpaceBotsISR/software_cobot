@@ -7,19 +7,19 @@ def generate_launch_description():
     aruco_node = Node(
         package="ros2_aruco",
         executable="aruco_node",
-        name="aruco_node0",
+        name="aruco_node2",
         output="screen",
         parameters=[
             {
                 "marker_size": 0.052,
                 "aruco_dictionary_id": "DICT_4X4_250",
-                "image_topic": "/camera_0/image_raw",
-                "camera_info_topic": "/camera_0/camera_info",
+                "image_topic": "/camera_2/image_raw",
+                "camera_info_topic": "/camera_2/camera_info",
             }
         ],
         remappings=[
-            ("/aruco_poses", "/camera_0/aruco_poses"),
-            ("/aruco_markers", "/camera_0/aruco_markers"),
+            ("/aruco_poses", "/camera_2/aruco_poses"),
+            ("/aruco_markers", "/camera_2/aruco_markers"),
         ],
     )
 
