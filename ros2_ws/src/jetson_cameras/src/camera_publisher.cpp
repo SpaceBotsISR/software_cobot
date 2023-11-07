@@ -88,13 +88,17 @@ class CameraPublisher : public rclcpp::Node {
     }
 
     void init_publishers() {
-        std::string compressed_topic_name =
+        // Quality of service change
+        // auto sensor_qos = rclcpp::SensorDataQoS();
+        // sensor_qos.keep_last(5);
+
+        std::string compressed_topic_name = 
             "/camera_" + std::to_string(camera_id) + "/image_raw/compressed";
         compressed_frame_pub =
-            this->create_publisher<sensor_msgs::msg::CompressedImage>(compressed_topic_name, 10);
+            this->create_publisher<sensor_msgs::msg::CompressedImage>(compressed_topic_name, 5);
 
         std::string raw_topic_name = "/camera_" + std::to_string(camera_id) + "/image_raw";
-        raw_frame_pub = this->create_publisher<sensor_msgs::msg::Image>(raw_topic_name, 10);
+        raw_frame_pub = this->create_publisher<sensor_msgs::msg::Image>(raw_topic_name, 5);
 
         std::string camera_info_topic_name =
             "/camera_" + std::to_string(camera_id) + "/camera_info";
