@@ -169,6 +169,7 @@ class CameraPublisher : public rclcpp::Node {
     void publish_raw_image(const cv::Mat& image) {
         auto raw_msg = std::make_unique<sensor_msgs::msg::Image>();
         raw_msg->header.stamp = this->now();
+        raw_msg->header.frame_id = "camera_frame_" + std::to_string(camera_id);
         raw_msg->height = image.rows;
         raw_msg->width = image.cols;
         raw_msg->encoding = "bgr8";
@@ -184,6 +185,8 @@ class CameraPublisher : public rclcpp::Node {
         cv::imencode(".jpg", image, buffer);
 
         auto compressed_msg = std::make_unique<sensor_msgs::msg::CompressedImage>();
+        compressed_msg->header.stamp = this->now();
+        compressed_msg->header.frame_id = "camera_frame_" + std::to_string(camera_id);
         compressed_msg->format = "jpeg";
         compressed_msg->data.assign(buffer.begin(), buffer.end());
         compressed_frame_pub->publish(*compressed_msg);
