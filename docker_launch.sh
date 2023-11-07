@@ -27,7 +27,7 @@ case "$1" in
         echo "Started the existing 'scobot' container."
       else
         # Create and run a new container
-        docker run -it --network=host --ipc=host -e DISPLAY=$DISPLAY -v $PWD/ros2_ws:/ros2_ws -e DISPLAY=host.docker.internal:0 -v /tmp/.X11-unix/:/tmp/.X11-unix/ -t -i --device=/dev/ttyACM0 --name scobot scobot_ros2
+        docker run -it --network=host --ipc=host -e DISPLAY=$DISPLAY -v $PWD/ros2_ws:/ros2_ws -e DISPLAY=host.docker.internal:0 -v /tmp/.X11-unix:/tmp/.X11-unix:rw -t -i --name scobot scobot_ros2
       fi
     fi
     ;;
