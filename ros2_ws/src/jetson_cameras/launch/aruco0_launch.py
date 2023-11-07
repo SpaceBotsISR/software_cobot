@@ -17,10 +17,10 @@ def generate_launch_description():
                 "camera_info_topic": "/camera_0/camera_info",
             }
         ],
-        remappings=[
-            ("/aruco_poses", "/camera_0/aruco_poses"),
-            ("/aruco_markers", "/camera_0/aruco_markers"),
-        ],
+        # remappings=[
+        #     ("/aruco_poses", "/camera_0/aruco_poses"),
+        #     ("/aruco_markers", "/camera_0/aruco_markers"),
+        # ],
     )
 
     return LaunchDescription([aruco_node])
