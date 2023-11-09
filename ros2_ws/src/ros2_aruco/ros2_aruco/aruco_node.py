@@ -40,10 +40,13 @@ from geometry_msgs.msg import PoseArray, Pose
 from ros2_aruco_interfaces.msg import ArucoMarkers
 from rcl_interfaces.msg import ParameterDescriptor, ParameterType
 
+IMAGE_COUNT = 30
+
 
 class ArucoNode(rclpy.node.Node):
     def __init__(self):
         super().__init__("aruco_node")
+        self.image_counter = 0
 
         # Declare and read parameters
         self.declare_parameter(
@@ -158,9 +161,14 @@ class ArucoNode(rclpy.node.Node):
 
     def image_callback(self, img_msg):
         if self.info_msg is None:
-            self.get_logger().warn("No camera info has been received!")
             return
 
+        self.image_counter += 1
+        if self.image_counter >= IMAGE_COUNT:
+            self.image_counter = 0
+            return
+
+        
         cv_image = self.bridge.imgmsg_to_cv2(img_msg, desired_encoding="mono8")
         markers = ArucoMarkers()
         pose_array = PoseArray()
