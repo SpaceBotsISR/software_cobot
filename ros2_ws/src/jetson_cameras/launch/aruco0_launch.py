@@ -11,16 +11,16 @@ def generate_launch_description():
         output="screen",
         parameters=[
             {
-                "marker_size": 0.052,
+                "marker_size": 0.165,
                 "aruco_dictionary_id": "DICT_4X4_250",
                 "image_topic": "/camera_0/image_raw",
                 "camera_info_topic": "/camera_0/camera_info",
             }
         ],
-        # remappings=[
-        #     ("/aruco_poses", "/camera_0/aruco_poses"),
-        #     ("/aruco_markers", "/camera_0/aruco_markers"),
-        # ],
+        remappings=[
+            ("/aruco_poses", "/camera_0/aruco_poses"),
+            ("/aruco_markers", "/camera_0/aruco_markers"),
+        ],
     )
 
     return LaunchDescription([aruco_node])

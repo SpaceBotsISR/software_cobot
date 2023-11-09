@@ -5,7 +5,7 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 import os
 
-ENABLE_ARUCO = True  
+ENABLE_ARUCO = True   
 
 
 def generate_launch_description():
