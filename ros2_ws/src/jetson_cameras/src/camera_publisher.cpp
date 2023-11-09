@@ -14,11 +14,12 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 
-#define DISPLAY_WIDTH 960
-#define DISPLAY_HEIGHT 540
-#define FRAMERATE 30
-#define FLIP_METHOD 0
-#define FRAME_SIZE DISPLAY_WIDTH* DISPLAY_HEIGHT * 3
+constexpr int display_width = 960;
+constexpr int display_height = 540;
+constexpr int frame_rate = 30;
+constexpr int flip_method = 0;
+
+constexpr int frame_size = display_width * display_height * 3;
 
 class CameraPublisher : public rclcpp::Node {
    public:
@@ -89,8 +90,8 @@ class CameraPublisher : public rclcpp::Node {
 
     void init_publishers() {
         // Quality of service change
-        // auto sensor_qos = rclcpp::SensorDataQoS();
-        // sensor_qos.keep_last(5);
+        auto sensor_qos = rclcpp::SensorDataQoS();
+        sensor_qos.keep_last(5);
 
         std::string compressed_topic_name = 
             "/camera_" + std::to_string(camera_id) + "/image_raw/compressed";
@@ -129,11 +130,11 @@ class CameraPublisher : public rclcpp::Node {
 
     void init_timers() {
         timer1_ =
-            this->create_wall_timer(std::chrono::milliseconds(30),
+            this->create_wall_timer(std::chrono::milliseconds(1000 / frame_rate + 1),
                                     std::bind(&CameraPublisher::image_publisher_callback, this));
 
         timer2_ = this->create_wall_timer(
-            std::chrono::milliseconds(500),
+            std::chrono::milliseconds(1000),
             std::bind(&CameraPublisher::camera_info_publisher_callback, this));
     }
     void camera_info_publisher_callback() {
@@ -149,8 +150,8 @@ class CameraPublisher : public rclcpp::Node {
     }
 
     cv::Mat receive_image_from_socket() {
-        ssize_t msg_size = FRAME_SIZE;
-        cv::Mat image(DISPLAY_HEIGHT, DISPLAY_WIDTH, CV_8UC3);
+        ssize_t msg_size = frame_size;
+        cv::Mat image(display_height, display_width, CV_8UC3);
 
         ssize_t total_bytes_received = 0;
         ssize_t offset = 0;

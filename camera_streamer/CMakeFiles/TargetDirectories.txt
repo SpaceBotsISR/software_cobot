@@ -1,3 +1,0 @@
-/home/nvidia/Desktop/software_cobot/camera_streamer/CMakeFiles/rebuild_cache.dir
-/home/nvidia/Desktop/software_cobot/camera_streamer/CMakeFiles/camera_streamer.dir
-/home/nvidia/Desktop/software_cobot/camera_streamer/CMakeFiles/edit_cache.dir

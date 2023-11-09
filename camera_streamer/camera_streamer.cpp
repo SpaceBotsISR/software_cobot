@@ -6,30 +6,32 @@
 #include <unistd.h>
 #include <chrono>
 
-
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <vector>
 
-#define CAPTURE_WIDTH 1920
-#define CAPTURE_HEIGHT 1080
-#define DISPLAY_WIDTH 960
-#define DISPLAY_HEIGHT 540
-#define FRAMERATE 30
-#define FLIP_METHOD 2
+constexpr int capture_width = 1920;
+constexpr int capture_height = 1080;
+constexpr int display_width = 960;
+constexpr int display_height = 540;
+constexpr int framerate = 30;
+constexpr int filp_method = 2;
+
+constexpr int msg_size = display_width * display_height * 3; // msg size in bytes
+constexpr int camera_sleep = 1000 / framerate;
 
 std::string gstreamer_pipeline(int sensor_id) {
     return "nvarguscamerasrc sensor-id=" + std::to_string(sensor_id) +
            " ! "
            "video/x-raw(memory:NVMM), width=(int)" +
-           std::to_string(CAPTURE_WIDTH) + ", height=(int)" + std::to_string(CAPTURE_HEIGHT) +
-           ", FRAMERATE=(fraction)" + std::to_string(FRAMERATE) +
+           std::to_string(capture_width) + ", height=(int)" + std::to_string(capture_height) +
+           ", FRAMERATE=(fraction)" + std::to_string(framerate) +
            "/1 ! "
            "nvvidconv flip-method=" +
-           std::to_string(FLIP_METHOD) +
+           std::to_string(filp_method) +
            " ! "
            "video/x-raw, width=(int)" +
-           std::to_string(DISPLAY_WIDTH) + ", height=(int)" + std::to_string(DISPLAY_HEIGHT) +
+           std::to_string(display_width) + ", height=(int)" + std::to_string(display_height) +
            ", format=(string)BGRx ! "
            "videoconvert ! "
            "video/x-raw, format=(string)BGR ! appsink";
@@ -86,7 +88,7 @@ class VideoServer {
                     close(client_socket);  // Close the client socket when they disconnect
                     break;
                 }
-                std::chrono::milliseconds duration(33);
+                std::chrono::milliseconds duration(camera_sleep);
             }
         }
         video_capture.release();
@@ -101,10 +103,10 @@ class VideoServer {
     cv::VideoCapture video_capture;
 
     bool send_frame(cv::Mat& frame) {
-        ssize_t msg_size = frame.total() * frame.elemSize();
         unsigned char* frame_data_ptr = frame.data;
 
-        while (msg_size > 0) {
+        int bytes_to_send = msg_size;
+        while (bytes_to_send > 0) {
             ssize_t bytes_sent = send(client_socket, frame_data_ptr, msg_size, 0);
 
             if (bytes_sent <= 0) {
@@ -112,7 +114,7 @@ class VideoServer {
                 return false;
             }
 
-            msg_size -= bytes_sent;
+            bytes_to_send -= bytes_sent;
             frame_data_ptr += bytes_sent;
         }
         return true;
