@@ -16,7 +16,7 @@
 
 constexpr int display_width = 960;
 constexpr int display_height = 540;
-constexpr int frame_rate = 30;
+constexpr int frame_rate = 15;
 constexpr int flip_method = 0;
 
 constexpr int frame_size = display_width * display_height * 3;
@@ -130,7 +130,7 @@ class CameraPublisher : public rclcpp::Node {
 
     void init_timers() {
         timer1_ =
-            this->create_wall_timer(std::chrono::milliseconds(1000 / frame_rate + 1),
+            this->create_wall_timer(std::chrono::milliseconds(100),
                                     std::bind(&CameraPublisher::image_publisher_callback, this));
 
         timer2_ = this->create_wall_timer(
