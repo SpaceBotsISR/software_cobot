@@ -5,10 +5,12 @@ from launch.launch_description_sources import PythonLaunchDescriptionSource
 from ament_index_python.packages import get_package_share_directory
 import os
 
-ENABLE_ARUCO = False
+ENABLE_ARUCO = False   
 
 
 def generate_launch_description():
+    aruco_dir = get_package_share_directory("aruco_opencv")
+    
     jetson_cameras_dir = get_package_share_directory("jetson_cameras")
     camera_params = jetson_cameras_dir + "/config/camera_params.yaml"
 
@@ -20,7 +22,7 @@ def generate_launch_description():
     )
 
     aruco_node = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(jetson_cameras_dir + "/launch/aruco3_launch.py"),
+        PythonLaunchDescriptionSource(aruco_dir + "/launch/aruco3.launch.py"),
     )
 
     if ENABLE_ARUCO:
