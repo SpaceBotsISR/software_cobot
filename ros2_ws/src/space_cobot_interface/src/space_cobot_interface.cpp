@@ -29,6 +29,8 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 
+#include "space_cobot_interface.hpp"
+
 #define NUM_MOTORS 6
 #define pi 3.1415926535897932384
 #define FORCE_MODE 0
@@ -96,14 +98,10 @@ Eigen::Matrix3d rc_Rd;
 /// Declaring MAVROS State
 mavros_msgs::msg::State current_state;
 
-void state_cb(const mavros_msgs::msg::State::ConstPtr &msg)
-{
-    current_state = *msg;
-}
-
-void rc_controlCallback(const mavros_msgs::msg::RCIn::ConstPtr &msg)
+void Space_Cobot_Interface::rc_controlCallback(const mavros_msgs::msg::RCIn::ConstPtr &msg)
 {
     pwm_flight_mode = msg->channels[5];
+    cout << "pwd flight mode " << pwm_flight_mode << endl;
 
     toggle_position_orientation = msg->channels[2];
     toggle_world_body_frames = msg->channels[7];
@@ -388,7 +386,7 @@ void manualControl_PositionAbsolute(Eigen::Vector3d current_position_absolute)
 
 vector<double> actuator_pwm_values(6);
 
-void pwmValuesCallback(const space_cobot_interface::msg::PwmValues::ConstPtr &msg)
+void Space_Cobot_Interface::pwmValuesCallback(const space_cobot_interface::msg::PwmValues::ConstPtr &msg)
 {
     for (int i = 0; i < 6; i++)
         actuator_pwm_values[i] = msg->pwm[i];
@@ -402,7 +400,7 @@ void pwmValuesCallback(const space_cobot_interface::msg::PwmValues::ConstPtr &ms
     target_force[2] = msg->force[2];
 }
 
-void imuCallback(const sensor_msgs::msg::Imu::ConstPtr &msg)
+void Space_Cobot_Interface::imuCallback(const sensor_msgs::msg::Imu::ConstPtr &msg)
 {
 
     orientation_current.x() = msg->orientation.x;
@@ -613,39 +611,78 @@ int main(int argc, char **argv)
 
     rclcpp::init(argc, argv);
 
-    auto node = rclcpp::Node::make_shared("space_cobot_interface");
+    rclcpp::spin(std::make_shared<Space_Cobot_Interface>());
+}
 
-    // Publishing and Subscribing
+void Space_Cobot_Interface::subscriber_and_parameter_declare()
+{
+    auto imu_QoS = rclcpp::QoS(10);
+    imu_QoS.best_effort();
+    imu_QoS.durability_volatile();
 
-    auto state_sub = node->create_subscription<mavros_msgs::msg::State>("mavros/state", 10, state_cb);
+    std::cout << "teste1" << std::flush << std::endl;
 
-    auto local_pos_pub = node->create_publisher<geometry_msgs::msg::PoseStamped>("mavros/setpoint_position/local", 10);
+    this->state_sub = this->create_subscription<mavros_msgs::msg::State>("/mavros/state", 10, std::bind(&Space_Cobot_Interface::state_cb, this, _1));
+    this->fmode = this->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, std::bind(&Space_Cobot_Interface::rc_controlCallback, this, _1));
+    this->pwm_values = this->create_subscription<space_cobot_interface::msg::PwmValues>("/important_values", 1000, std::bind(&Space_Cobot_Interface::pwmValuesCallback, this, _1));
+    this->imu_values = this->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, std::bind(&Space_Cobot_Interface::imuCallback, this, _1));
 
-    auto actuator_controls_pub = node->create_publisher<mavros_msgs::msg::ActuatorControl>("/mavros/actuator_control", 1000);
+    this->pub_des_pose = this->create_publisher<std_msgs::msg::Float64MultiArray>("/space_cobot_interface/desired_orientation", 10);
 
-    auto arming_client = node->create_client<mavros_msgs::srv::CommandBool>("mavros/cmd/arming");
+    this->local_pos_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/mavros/setpoint_position/local", 10);
+    this->actuator_controls_pub = this->create_publisher<mavros_msgs::msg::ActuatorControl>("/mavros/actuator_control", 1000);
+    this->pub_force = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/force", 1000);
+    this->pub_torque = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/torque", 1000);
 
-    auto set_mode_client = node->create_client<mavros_msgs::srv::SetMode>("mavros/set_mode");
+    this->arming_client = this->create_client<mavros_msgs::srv::CommandBool>("/mavros/cmd/arming");
+    this->set_mode_client = this->create_client<mavros_msgs::srv::SetMode>("/mavros/set_mode");
 
-    auto fmode = node->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 1000, rc_controlCallback);
+    /// Initializing the rosparams
+    this->declare_parameter<vector<double>>("/desired_orientation_rpy", orientation_desired_rpy);
+    this->declare_parameter<vector<double>>("/desired_angular_velocity", angular_velocity_desired);
+    this->declare_parameter<vector<double>>("/desired_position", {0.0, 0.0, 0.0});
+    this->declare_parameter<vector<double>>("/desired_velocity", {0.0, 0.0, 0.0});
+    this->declare_parameter<int>("incremental_mode", incremental);
+    this->declare_parameter<vector<double>>("force_ol", this->force_ol);
+    this->declare_parameter<vector<double>>("moment_ol", this->torque_ol);
+    std::cout << "teste1" << std::flush << std::endl;
+}
 
-    auto pwm_values = node->create_subscription<space_cobot_interface::msg::PwmValues>("important_values", 1000, pwmValuesCallback);
+void Space_Cobot_Interface::set_desired_orientation(std::vector<double> desired_orientation)
+{
+    std::cout << orientation_desired_rpy[0] << " " << orientation_desired_rpy[1] << " " << orientation_desired_rpy[2] << std::flush << std::endl;
+    std_msgs::msg::Float64MultiArray msg;
+    msg.data.resize(3);
+    for (int i = 0; i < 3; i++)
+        msg.data[i] = desired_orientation[i];
+    this->pub_des_pose->publish(msg);
+}
 
-    auto imu_values = node->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", 1000, imuCallback);
+Space_Cobot_Interface::Space_Cobot_Interface()
+    : Node("SpaceCobotController")
+{
+    this->force_ol.resize(3);
+    this->torque_ol.resize(3);
+    this->subscriber_and_parameter_declare();
 
-    auto pub_force = node->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/force", 1000);
+    // this->run_timer = this->create_wall_timer (std::chrono::milliseconds(20), std::bind(&Space_Cobot_Interface::run, this));
 
-    auto pub_torque = node->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/torque", 1000);
+    std::cout << "teste1" << std::flush << std::endl;
 
+    run_thread = std::thread(&Space_Cobot_Interface::run, this);
+}
+
+void Space_Cobot_Interface::run()
+{
+
+    std::cout << "run" << std::flush << std::endl;
     rclcpp::Rate rate(20);
-
     Eigen::Quaterniond current_orientation_manual_absolute;
     Eigen::Vector3d current_position_manual_absolute;
 
     /// wait for FCU connection
     while (rclcpp::ok() && !current_state.connected)
     {
-        rclcpp::spin_some(node);
         cout << "Connecting to FCU....." << endl;
         rate.sleep();
     }
@@ -654,7 +691,6 @@ int main(int argc, char **argv)
     else
     {
         cout << "Connection to FCU FAILED!" << endl;
-        return 0;
     }
     /// send a few setpoints before starting in order to arm it
     //%%%%%%%%%%%%%%%%%%%%%%% --------NEED TO CHECK THIS to make sure if this doesnt cause any sudden motion or tells the cobot to go to the desired setpoint... %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -668,8 +704,6 @@ int main(int argc, char **argv)
     for (int i = 100; rclcpp::ok() && i > 0; --i)
     {
         local_pos_pub->publish(pose);
-        rclcpp::spin_some(node);
-        rate.sleep();
     }
 
     auto offb_set_mode = std::make_shared<mavros_msgs::srv::SetMode::Request>();
@@ -679,54 +713,36 @@ int main(int argc, char **argv)
     auto arm_cmd = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
     arm_cmd->value = true;
 
-    rclcpp::Time last_request = node->get_clock()->now();
-    vector<double> force_ol(3), torque_ol(3);
-
-    /// Initializing the rosparams
-    auto orientation_desired_rpy = node->declare_parameter<vector<double>>("desired_orientation_rpy");
-    auto angular_velocity_desired = node->declare_parameter<vector<double>>("desired_angular_velocity");
-    auto position_desired = node->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
-    auto velocity_desired = node->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
-    auto incremental = node->declare_parameter<double>("incremental_mode");
-    auto force_ol1 = node->declare_parameter<vector<double>>("force_ol");
-    auto torque_ol2 = node->declare_parameter<vector<double>>("moment_ol");
+    rclcpp::Time last_request = this->get_clock()->now();
 
     while (rclcpp::ok())
     {
+        set_desired_orientation(orientation_desired_rpy);
 
-        node->get_parameter("desired_position", position_desired);
-        node->get_parameter("desired_velocity", velocity_desired);
-        node->get_parameter("desired_orientation_rpy", orientation_desired_rpy);
-        node->get_parameter("desired_angular_velocity", angular_velocity_desired);
-        node->get_parameter("incremental_mode", incremental);
-        node->get_parameter("force_ol", force_ol);
-        node->get_parameter("moment_ol", torque_ol);
+        this->get_parameter("/desired_position", position_desired);
+        this->get_parameter("/desired_velocity", velocity_desired);
+        // this->get_parameter("/desired_orientation_rpy", orientation_desired_rpy);
+        this->get_parameter("/desired_angular_velocity", angular_velocity_desired);
+        this->get_parameter("incremental_mode", incremental);
+        this->get_parameter("force_ol", this->force_ol);
+        this->get_parameter("moment_ol", this->torque_ol);
 
         /// Making sure the mode set is always OFFBOARD and its always armed
         if (current_state.mode != "OFFBOARD" &&
-            (node->get_clock()->now() - last_request > rclcpp::Duration::from_seconds(5.0)))
+            (this->get_clock()->now() - last_request > rclcpp::Duration::from_seconds(5.0)))
         {
             auto result = set_mode_client->async_send_request(offb_set_mode);
 
-            if (rclcpp::spin_until_future_complete(node, result) ==
-                rclcpp::FutureReturnCode::SUCCESS)
-            {
-                RCLCPP_INFO(node->get_logger(), "Offboard enabled");
-            }
-            last_request = node->get_clock()->now();
+            last_request = this->get_clock()->now();
         }
         else
         {
             if (!current_state.armed &&
-                (node->get_clock()->now() - last_request > rclcpp::Duration::from_seconds(5.0)))
+                (this->get_clock()->now() - last_request > rclcpp::Duration::from_seconds(5.0)))
             {
                 auto result = arming_client->async_send_request(arm_cmd);
-                if (rclcpp::spin_until_future_complete(node, result) ==
-                    rclcpp::FutureReturnCode::SUCCESS)
-                {
-                    RCLCPP_INFO(node->get_logger(), "Vehicle armed");
-                }
-                last_request = node->get_clock()->now();
+
+                last_request = this->get_clock()->now();
             }
         }
 
@@ -765,7 +781,7 @@ int main(int argc, char **argv)
 
             // Setting the desired  orientation rosparam
             quats2rpy(orientation_desired, orientation_desired_rpy);
-            node->set_parameter(rclcpp::Parameter("desired_orientation_rpy", orientation_desired_rpy));
+            set_desired_orientation(orientation_desired_rpy);
         }
 
         else if (flight_mode == FlightModes::MANUAL_ORIENTATION_WORLD_ABSOLUTE)
@@ -785,7 +801,7 @@ int main(int argc, char **argv)
 
             // Setting the desired  orientation rosparam
             quats2rpy(orientation_desired, orientation_desired_rpy);
-            node->set_parameter(rclcpp::Parameter("desired_orientation_rpy", orientation_desired_rpy));
+            set_desired_orientation(orientation_desired_rpy);
         }
 
         else if (flight_mode == FlightModes::MANUAL_ORIENTATION_BODY_INCREMENTAL)
@@ -802,7 +818,7 @@ int main(int argc, char **argv)
 
             // Setting the desired  orientation rosparam
             quats2rpy(orientation_desired, orientation_desired_rpy);
-            node->set_parameter(rclcpp::Parameter("desired_orientation_rpy", orientation_desired_rpy));
+            set_desired_orientation(orientation_desired_rpy);
         }
 
         else if (flight_mode == FlightModes::MANUAL_ORIENTATION_BODY_ABSOLUTE)
@@ -819,7 +835,7 @@ int main(int argc, char **argv)
             manualControl_OrientationBodyAbsolute(current_orientation_manual_absolute);
 
             // Setting the desired  orientation rosparam
-            node->set_parameter(rclcpp::Parameter("desired_orientation_rpy", orientation_desired_rpy));
+            set_desired_orientation(orientation_desired_rpy);
         }
 
         else if (flight_mode == FlightModes::MANUAL_POSITION_INCREMENTAL)
@@ -835,7 +851,7 @@ int main(int argc, char **argv)
             }
 
             // Setting the desired position rosparam
-            node->set_parameter(rclcpp::Parameter("desired_position", position_desired));
+            set_desired_orientation(position_desired);
         }
 
         else if (flight_mode == FlightModes::MANUAL_POSITION_ABSOLUTE)
@@ -852,7 +868,7 @@ int main(int argc, char **argv)
             }
 
             manualControl_PositionAbsolute(current_position_manual_absolute);
-            node->set_parameter(rclcpp::Parameter("desired_position", position_desired));
+            this->set_parameter(rclcpp::Parameter("/desired_position", position_desired));
         }
 
         ///////////////////////////////////////      OPEN LOOP /////////////////////////////////////////////////////////
@@ -902,31 +918,6 @@ int main(int argc, char **argv)
 
                 OpenLoopForce(force);
             }
-            // Shady ifs that do not make sense
-            //   if(FORCE_MODE){
-            //       force[0] = force_ol[0];
-            //       force[1] = force_ol[1];
-            //       force[2] = force_ol[2];
-            //
-            //      moment[0] = 0;
-            //      moment[1] = 0;
-            //      moment[2] = 0;
-            // }
-            //
-            // if(MOMENT_MODE){
-            //     /*force[0] = 0;
-            //     force[1] = 0;
-            //     force[2] = 0;*/
-            //
-            //     force[0] = force_ol[0];
-            //     force[1] = force_ol[1];
-            //     force[2] = force_ol[2];
-            //
-            //
-            //     moment[0] = torque_ol[0];
-            //     moment[1] = torque_ol[1];
-            //     moment[2] = torque_ol[2];
-            // }
 
             Eigen::VectorXd u = getActuationVector(force, moment);
             double RPM[NUM_MOTORS];
@@ -968,7 +959,7 @@ int main(int argc, char **argv)
         pub_torque->publish(opl_torque);
 
         // Send to the controller
-        actuator_control_msg.header.stamp = node->get_clock()->now();
+        actuator_control_msg.header.stamp = this->get_clock()->now();
         actuator_control_msg.group_mix = 0;
 
         /// running a loop to send the PWM values to motor
@@ -980,11 +971,14 @@ int main(int argc, char **argv)
         }
 
         /// publishing the actuator pwms (assigned above) to the topic "mavros_msgs::ActuatorControl" controls the motors
-        actuator_controls_pub->publish(actuator_control_msg);
+        this->actuator_controls_pub->publish(actuator_control_msg);
 
-        rclcpp::spin_some(node);
         rate.sleep();
     }
+}
 
-    return 0;
+void Space_Cobot_Interface::state_cb(const mavros_msgs::msg::State::ConstPtr &msg)
+{
+    cout << "state_cb" << flush << endl;
+    current_state = *msg;
 }
