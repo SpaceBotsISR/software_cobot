@@ -1,7 +1,0 @@
-<?xml version="1.0"?>
-<launch>
-	<include file="$(find jetson_csi_cam)/jetson_csi_cam.launch"/>
-	<include file="$(find jetson_csi_cam)/jetson_csi_cam1.launch"/>
-	<include file="$(find jetson_csi_cam)/jetson_csi_cam2.launch"/>
-	<include file="$(find jetson_csi_cam)/jetson_csi_cam3.launch"/>
-</launch>
