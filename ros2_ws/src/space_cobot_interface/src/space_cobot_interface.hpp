@@ -29,9 +29,11 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 
+#include <std_msgs/msg/float64_multi_array.hpp>
+
 #include <vector>
 
-#include <thread> 
+#include <thread>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -45,7 +47,6 @@
 
 using std::placeholders::_1;
 
-
 #define NUM_MOTORS 6
 #define pi 3.1415926535897932384
 #define FORCE_MODE 0
@@ -54,36 +55,38 @@ using std::placeholders::_1;
 class Space_Cobot_Interface : public rclcpp::Node
 {
 public:
-    Space_Cobot_Interface();
+  Space_Cobot_Interface();
 
-    void subscriber_and_parameter_declare();
+  void subscriber_and_parameter_declare();
 
-    void run();
+  void run();
 
-    rclcpp::TimerBase::SharedPtr run_timer;
+  rclcpp::TimerBase::SharedPtr run_timer;
 
-    void state_cb (const mavros_msgs::msg::State::ConstPtr &msg);
-    void rc_controlCallback (const mavros_msgs::msg::RCIn::ConstPtr &msg);
-    void pwmValuesCallback(const space_cobot_interface::msg::PwmValues::ConstPtr &msg);
-    void imuCallback(const sensor_msgs::msg::Imu::ConstPtr &msg);
+  void state_cb(const mavros_msgs::msg::State::ConstPtr &msg);
+  void rc_controlCallback(const mavros_msgs::msg::RCIn::ConstPtr &msg);
+  void pwmValuesCallback(const space_cobot_interface::msg::PwmValues::ConstPtr &msg);
+  void imuCallback(const sensor_msgs::msg::Imu::ConstPtr &msg);
 
-private: 
+private:
+  void set_desired_orientation(std::vector<double> desired_orientation);
 
   std::thread run_thread;
-    
-    std::vector<double> force_ol;
-    std::vector<double> torque_ol;
 
-    rclcpp::Subscription<mavros_msgs::msg::State>::SharedPtr state_sub;
-    rclcpp::Subscription<space_cobot_interface::msg::PwmValues>::SharedPtr pwm_values;
-    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_values;
-    rclcpp::Subscription<mavros_msgs::msg::RCIn>::SharedPtr fmode;
-    
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr local_pos_pub;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pub_torque;
-    rclcpp::Publisher<mavros_msgs::msg::ActuatorControl>::SharedPtr actuator_controls_pub;
-    rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pub_force;
+  std::vector<double> force_ol;
+  std::vector<double> torque_ol;
 
-    rclcpp::Client<mavros_msgs::srv::SetMode>::SharedPtr set_mode_client;
-    rclcpp::Client<mavros_msgs::srv::CommandBool>::SharedPtr arming_client;
+  rclcpp::Subscription<mavros_msgs::msg::State>::SharedPtr state_sub;
+  rclcpp::Subscription<space_cobot_interface::msg::PwmValues>::SharedPtr pwm_values;
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_values;
+  rclcpp::Subscription<mavros_msgs::msg::RCIn>::SharedPtr fmode;
+
+  rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr local_pos_pub;
+  rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pub_torque;
+  rclcpp::Publisher<mavros_msgs::msg::ActuatorControl>::SharedPtr actuator_controls_pub;
+  rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pub_force;
+  rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr pub_des_pose;
+
+  rclcpp::Client<mavros_msgs::srv::SetMode>::SharedPtr set_mode_client;
+  rclcpp::Client<mavros_msgs::srv::CommandBool>::SharedPtr arming_client;
 };
