@@ -4,6 +4,8 @@
 #include <sys/socket.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <chrono>
+
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
@@ -33,7 +35,7 @@ std::string gstreamer_pipeline(int sensor_id) {
            "video/x-raw, format=(string)BGR ! appsink";
 }
 
-class VideoServer : sensor_id(sensor_id) {
+class VideoServer {
    public:
     VideoServer(int port, int sensor_id) {
         init_socket(port);
@@ -84,6 +86,7 @@ class VideoServer : sensor_id(sensor_id) {
                     close(client_socket);  // Close the client socket when they disconnect
                     break;
                 }
+                std::chrono::milliseconds duration(33);
             }
         }
         video_capture.release();
