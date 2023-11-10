@@ -293,7 +293,8 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void SpaceCobotController::subscriber_and_parameter_declare() {
+void SpaceCobotController::subscriber_and_parameter_declare()
+{
 
     auto imu_QoS = rclcpp::QoS(10);
     imu_QoS.best_effort();
@@ -305,20 +306,29 @@ void SpaceCobotController::subscriber_and_parameter_declare() {
     sub_current_pose = this->create_subscription<sensor_msgs::msg::Imu>("/mavros/imu/data", imu_QoS, std::bind(&SpaceCobotController::IMUCallback, this, _1));
     sub_current_position = this->create_subscription<mocap_interface::msg::MocapMsg>("/space_cobot/mocap_interface/data", 1000, std::bind(&SpaceCobotController::mocapCallback, this, _1));
 
+    sub_desired_orientation = this->create_subscription<std_msgs::msg::Float64MultiArray>("/space_cobot_interface/desired_orientation", 1000, std::bind(&SpaceCobotController::get_desired_orientation, this, _1));
+
     imp_values = this->create_publisher<space_cobot_interface::msg::PwmValues>("/important_values", 1000);
 
     current_pose_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/current_pose", 1000);
+}
+
+void SpaceCobotController::get_desired_orientation(const std_msgs::msg::Float64MultiArray &msg)
+{
+    orientation_desired_rpy[0] = msg.data[0];
+    orientation_desired_rpy[1] = msg.data[1];
+    orientation_desired_rpy[2] = msg.data[2];
 }
 
 SpaceCobotController::SpaceCobotController() : Node("SpaceCobotController")
 {
     subscriber_and_parameter_declare();
 
-    run_thread =  std::thread(&SpaceCobotController::run, this);
-
+    run_thread = std::thread(&SpaceCobotController::run, this);
 }
 
-void SpaceCobotController::run(){
+void SpaceCobotController::run()
+{
 
     // Publishing and Subscribing
     rclcpp::Rate rate(20);
@@ -344,36 +354,37 @@ void SpaceCobotController::run(){
     /// Initialising the rosparams
     /// commenting position and velocity rosparam for now for safety
     /// this is incorporated in the getGains() where these are made into a diagonal matrix for using in the Moment function
-    auto _orientation_desired_rpy = this->declare_parameter<vector<double>>("desired_orientation_rpy", orientation_desired_rpy);
-    auto _angular_velocity_desired = this->declare_parameter<vector<double>>("desired_angular_velocity", angular_velocity_desired);
-    auto _position_desired = this->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
-    auto _velocity_desired = this->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
-    auto _att_p_gain = this->declare_parameter<vector<double>>("AttPGain", att_p_gain);
-    auto _att_i_gain = this->declare_parameter<vector<double>>("AttIGain", att_i_gain);
-    auto _att_d_gain = this->declare_parameter<vector<double>>("AttDGain", att_d_gain);
-    auto _time_step = this->declare_parameter<float>("TimeStep", time_step);
-    auto _force_mode = this->declare_parameter<bool>("ForceMode", force_mode);
-    auto _pos_p_gain = this->declare_parameter<vector<double>>("PosPGain", pos_p_gain);
-    auto _pos_i_gain = this->declare_parameter<vector<double>>("PosIGain", pos_i_gain);
-    auto _pos_d_gain = this->declare_parameter<vector<double>>("PosDGain", pos_d_gain);
+    this->declare_parameter<vector<double>>("desired_orientation_rpy", orientation_desired_rpy);
+    this->declare_parameter<vector<double>>("desired_angular_velocity", angular_velocity_desired);
+    this->declare_parameter<vector<double>>("desired_position", {0.0, 0.0, 0.0});
+    this->declare_parameter<vector<double>>("desired_velocity", {0.0, 0.0, 0.0});
+    this->declare_parameter<vector<double>>("AttPGain", att_p_gain);
+    this->declare_parameter<vector<double>>("AttIGain", att_i_gain);
+    this->declare_parameter<vector<double>>("AttDGain", att_d_gain);
+    this->declare_parameter<float>("TimeStep", time_step);
+    this->declare_parameter<bool>("ForceMode", force_mode);
+    this->declare_parameter<vector<double>>("PosPGain", pos_p_gain);
+    this->declare_parameter<vector<double>>("PosIGain", pos_i_gain);
+    this->declare_parameter<vector<double>>("PosDGain", pos_d_gain);
 
     while (rclcpp::ok())
     {
         /// getting all the rosparams
-        this->get_parameter("desired_position", _position_desired);
-        this->get_parameter("desired_velocity", _velocity_desired);
-        this->get_parameter("desired_orientation_rpy", _orientation_desired_rpy);
-        this->get_parameter("desired_angular_velocity", _angular_velocity_desired);
-        this->get_parameter("AttPGain", _att_p_gain);
-        this->get_parameter("AttIGain", _att_i_gain);
-        this->get_parameter("AttDGain", _att_d_gain);
-        this->get_parameter("TimeStep", _time_step);
-        this->get_parameter("ForceMode", _force_mode);
+        this->get_parameter("desired_position", position_desired);
+        this->get_parameter("desired_velocity", velocity_desired);
+        // this->get_parameter("desired_orientation_rpy", orientation_desired_rpy);
+        this->get_parameter("desired_angular_velocity", angular_velocity_desired);
 
-        this->get_parameter("PosPGain", _pos_p_gain);
-        this->get_parameter("PosIGain", _pos_i_gain);
-        this->get_parameter("PosDGain", _pos_d_gain);
+        this->get_parameter("AttPGain", att_p_gain);
+        this->get_parameter("AttIGain", att_i_gain);
+        this->get_parameter("AttDGain", att_d_gain);
+        this->get_parameter("TimeStep", time_step);
+        this->get_parameter("ForceMode", force_mode);
+        this->get_parameter("PosPGain", pos_p_gain);
+        this->get_parameter("PosIGain", pos_i_gain);
+        this->get_parameter("PosDGain", pos_d_gain);
 
+        std::cout << orientation_desired_rpy[0] << " " << orientation_desired_rpy[1] << " " << orientation_desired_rpy[2] << std::flush << std::endl;
         // Getting target orientation from the rosparam to global variable quaternion
         getTargetOrientation(orientation_desired_rpy);
 
