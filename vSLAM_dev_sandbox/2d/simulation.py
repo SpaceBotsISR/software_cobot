@@ -1,51 +1,92 @@
 import numpy as np
 
-X, Y, THETA = 0, 1, 2
-
 
 class Simulation:
-    def __init__(self) -> None:
-        self._ground_truth_poses = np.zeros((3, 1))
-        self._control_inputs = np.array(
-            [
-                [1, 1, 1, 0, 0, 0, 0, 0, 1, 3],
-                [0, 0, 0, 2, 0, 0, 0, 1, 0, 0],
-                [0, 0, 0, 0, np.pi / 4, np.pi / 4, 0, 0, 0, 0],
-            ]
-        )
-        self._landmarks = np.array(
-            [
-                [0, 0],
-                [1, 1],
-                [2, 2],
-                [3, 3],
-                [4, 4],
-                [5, 5],
-                [6, 6],
-                [7, 7],
-                [8, 8],
-                [9, 9],
-            ]
-        )
+    def __init__(
+        self,
+        fov_distance: float,
+        fov_angle: float,
+        landmarks: list[tuple[float, float]],
+        odom_sd: float = 0.1,
+        camera_range_sd: float = 0.05,
+        camera_angle_sd: float = 0.02,
+    ) -> None:
+        self.fov = fov_angle
+        self.fov_distance = fov_distance
+        self.x = 0.0
+        self.y = 0.0
+        self.theta = 0.0
 
-        self.compute_ground_truth_poses()
+        self.vx = 0.0
+        self.vy = 0.0
+        self.w = 0.0
 
-    def compute_ground_truth_poses(self):
-        for t in range(self._control_inputs.shape[1]):
-            x = self._ground_truth_poses[X, -1] + (
-                self._control_inputs[X, t] * np.cos(self._ground_truth_poses[THETA, -1])
-                - self._control_inputs[Y, t]
-                * np.sin(self._ground_truth_poses[THETA, -1])
-            )
-            y = self._ground_truth_poses[Y, -1] + (
-                self._control_inputs[X, t] * np.sin(self._ground_truth_poses[THETA, -1])
-                + self._control_inputs[Y, t]
-                * np.cos(self._ground_truth_poses[THETA, -1])
-            )
-            theta = self._ground_truth_poses[THETA, -1] + self._control_inputs[THETA, t]
-            pose = np.array([[x], [y], [theta]])
-            self._ground_truth_poses = np.hstack([self._ground_truth_poses, pose])
-        print(self._ground_truth_poses.shape)
+        self.landmarks = landmarks
+        self.odom_sd = odom_sd
+        self.camera_range_sd = camera_range_sd
+        self.camera_angle_sd = camera_angle_sd
 
+    def odom_noise(self) -> None:
+        return np.random.normal(0, self.odom_sd)
 
-Simulation()
+    def camera_range_noise(self) -> None:
+        return np.random.normal(0, self.camera_range_sd)
+
+    def camera_angle_noise(self) -> None:
+        return np.random.normal(0, self.camera_angle_sd)
+
+    def compute_next_pose(
+        self, vx: float, vy: float, w: float, dt: float
+    ) -> tuple[float, float, float]:
+        self.vx = vx
+        self.vy = vy
+        self.w = w
+
+        self.theta += w * dt
+        self.x += vx * np.cos(self.theta) * dt
+        self.y += vy * np.sin(self.theta) * dt
+
+        return self.x, self.y, self.theta
+
+    def get_odometry(self) -> tuple[float, float, float]:
+        odom_vx = self.vx + self.odom_noise()
+        odom_vy = self.vy + self.odom_noise()
+        odom_w = self.w + self.odom_noise()
+
+        return odom_vx, odom_vy, odom_w
+
+    def is_landmark_in_fov_angle(self, landmark_x: float, landmark_y: float) -> bool:
+        dx = landmark_x - self.x
+        dy = landmark_y - self.y
+
+        angle = np.arctan2(dy, dx) - self.theta
+
+        in_fov = np.abs(angle) < self.fov / 2
+        in_range = np.sqrt(dx**2 + dy**2) < self.fov_distance
+
+        return in_fov and in_range
+
+    def get_camera_measurements(self) -> list[dict]:
+        camera_measurements = []
+
+        for landmark in self.landmarks:
+            landmark_x = landmark[0]
+            landmark_y = landmark[1]
+
+            if self.is_landmark_in_fov_angle(landmark_x, landmark_y):
+                distance = (
+                    np.sqrt((landmark_x - self.x) ** 2 + (landmark_y - self.y) ** 2)
+                    + self.camera_range_noise()
+                )
+                angle = (
+                    np.arctan2(landmark_y - self.y, landmark_x - self.x) - self.theta
+                ) + self.camera_angle_noise()
+
+                measurment = {
+                    "distance": distance,
+                    "angle": angle,
+                    "id": landmark.index(),
+                }
+                camera_measurements.append(measurment)
+
+        return camera_measurements
