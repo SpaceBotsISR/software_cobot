@@ -34,7 +34,9 @@ def start_simulation():
         camera_angle_sd=0.02,
     )
     pyvis = PyVis(FOV_DISTANCE, FOV_ANGLE, LANDMARKS)
-    pyvis.set_initial_state(1, 1, np.radians(45))
+    pyvis.add_ground_truth_point(1, 1, np.radians(45))
+    pyvis.add_odom_point(10, 15, np.radians(90))
+    pyvis.add_slam_point(20, 20, np.radians(180))
 
     return sim, pyvis
 
