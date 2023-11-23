@@ -30,7 +30,7 @@ class PyVis:
         self.ax.grid()
         self.ax.legend()
 
-    def add_odom_point(self, x: float, y: float) -> None:
+    def add_odom_point(self, x: float, y: float, theta: float) -> None:
         self.odom_points.append((x, y))
         self.ax.scatter(x, y, marker="o", color="g", label="Odom Points")
         self.ax.legend()
@@ -77,7 +77,7 @@ class PyVis:
 
         return fov_x, fov_y
 
-    def add_slam_point(self, x: float, y: float) -> None:
+    def add_slam_point(self, x: float, y: float, theta: float) -> None:
         self.slam_points.append((x, y))
         self.ax.scatter(x, y, marker="o", color="m", label="SLAM Points")
         self.ax.legend()
