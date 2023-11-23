@@ -4,6 +4,7 @@ import numpy as np
 class Simulation:
     def __init__(
         self,
+        initial_pose: tuple[float, float, float],
         fov_distance: float,
         fov_angle: float,
         landmarks: list[tuple[float, float]],
@@ -13,9 +14,9 @@ class Simulation:
     ) -> None:
         self.fov = fov_angle
         self.fov_distance = fov_distance
-        self.x = 0.0
-        self.y = 0.0
-        self.theta = 0.0
+        self.x = initial_pose[0]
+        self.y = initial_pose[1]
+        self.theta = initial_pose[2]
 
         self.vx = 0.0
         self.vy = 0.0
@@ -26,8 +27,12 @@ class Simulation:
         self.camera_range_sd = camera_range_sd
         self.camera_angle_sd = camera_angle_sd
 
-    def odom_noise(self) -> None:
-        return np.random.normal(0, self.odom_sd)
+    def odom_noise(self, dt) -> None:
+        noise = 0.0
+
+        for t in range(int(dt) + 1):
+            noise += np.random.normal(0, self.odom_sd)
+        return noise
 
     def camera_range_noise(self) -> None:
         return np.random.normal(0, self.camera_range_sd)
@@ -42,16 +47,17 @@ class Simulation:
         self.vy = vy
         self.w = w
 
+        print(f"prev -> x: {self.x}, y: {self.y}, theta: {np.degrees(self.theta)}")
         self.theta += w * dt
-        self.x += vx * np.cos(self.theta) * dt
-        self.y += vy * np.sin(self.theta) * dt
+        self.x += (vx * np.cos(self.theta) + vy * np.sin(self.theta)) * dt
+        self.y += (vx * np.sin(self.theta) + vy * np.cos(self.theta)) * dt
 
         return self.x, self.y, self.theta
 
-    def get_odometry(self) -> tuple[float, float, float]:
-        odom_vx = self.vx + self.odom_noise()
-        odom_vy = self.vy + self.odom_noise()
-        odom_w = self.w + self.odom_noise()
+    def get_odometry(self, dt) -> tuple[float, float, float]:
+        odom_vx = self.vx + self.odom_noise(dt)
+        odom_vy = self.vy + self.odom_noise(dt)
+        odom_w = self.w + self.odom_noise(dt)
 
         return odom_vx, odom_vy, odom_w
 
