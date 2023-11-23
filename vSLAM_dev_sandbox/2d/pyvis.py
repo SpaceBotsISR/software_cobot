@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+TRANSPARENCY = 0.2
+
 
 class PyVis:
     def __init__(
@@ -33,7 +35,7 @@ class PyVis:
 
     def draw_direction_line(self, x: float, y: float, theta: float, color: str):
         # Length of the direction line
-        line_length = 2
+        line_length = 1
 
         # Calculate the endpoint of the direction line
         end_x = x + line_length * np.cos(theta)
@@ -78,10 +80,18 @@ class PyVis:
 
         # Draw FoV lines
         self.ax.plot(
-            [x, left_fov_x], [y, left_fov_y], linestyle=":", color="grey", alpha=0.5
+            [x, left_fov_x],
+            [y, left_fov_y],
+            linestyle=":",
+            color="grey",
+            alpha=TRANSPARENCY,
         )
         self.ax.plot(
-            [x, right_fov_x], [y, right_fov_y], linestyle=":", color="grey", alpha=0.5
+            [x, right_fov_x],
+            [y, right_fov_y],
+            linestyle=":",
+            color="grey",
+            alpha=TRANSPARENCY,
         )
 
         self.ax.legend()
