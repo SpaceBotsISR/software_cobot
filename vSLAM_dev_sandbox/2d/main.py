@@ -34,7 +34,7 @@ def start_simulation():
         camera_angle_sd=0.02,
     )
     pyvis = PyVis(FOV_DISTANCE, FOV_ANGLE, LANDMARKS)
-    pyvis.set_initial_state(0, 0, np.radians(90))
+    pyvis.set_initial_state(1, 1, np.radians(45))
 
     return sim, pyvis
 
