@@ -1,9 +1,10 @@
 from simulation import Simulation
 from pyvis import PyVis
+from server import Server
+from dataclasses import dataclass
+import time
 
 import numpy as np
-
-from dataclasses import dataclass
 
 FOV_DISTANCE = 20
 FOV_ANGLE = np.radians(45)
@@ -33,13 +34,16 @@ class OdomPose:
     theta: float
 
 
-def start_simulation(x, y, theta):
+def start_simulation(
+    x: float, y: float, theta: float
+) -> tuple[Simulation, PyVis, OdomPose]:
     sim = Simulation(
         (x, y, theta),
         FOV_DISTANCE,
         FOV_ANGLE,
         LANDMARKS,
-        odom_sd=0.1,
+        odom_range_sd=0.35,
+        odom_angle_sd=0.1,
         camera_range_sd=0.08,
         camera_angle_sd=0.02,
     )
@@ -53,32 +57,35 @@ def start_simulation(x, y, theta):
     return sim, pyvis, odom_pose
 
 
-def get_input():
+def get_input() -> tuple[float, float, float, float]:
     while True:
-        s = input("[vx vy w dt]: ").split()
+        s = input("[vx vy w]: ").split()
 
-        if len(s) != 4 and len(s) != 3:
+        print("s: ", s)
+        if s[0] == "r":
+            return None
+        elif len(s) != 3:
             print("Invalid input")
             continue
-        elif s == "exit":
-            return None
 
         vx = float(s[0])
         vy = float(s[1])
         w = np.radians(float(s[2]))
-        dt = 1 if len(s) == 3 else float(s[3])
-
-        return vx, vy, w, dt
+        return vx, vy, w
 
 
-def handle_ground_truth(sim, pyvis, vx, vy, w, dt):
+def handle_ground_truth(
+    sim: Simulation, pyvis: PyVis, vx: float, vy: float, w: float, dt: float
+) -> None:
     gt_x, gt_y, gt_theta = sim.compute_next_pose(vx, vy, w, dt)
     pyvis.add_ground_truth_point(gt_x, gt_y, gt_theta)
-    print(f"gt_x: {gt_x}, gt_y: {gt_y}, gt_theta: {np.degrees(gt_theta)}")
+    print(f"gt_x-> {gt_x}, gt_y: {gt_y}, gt_theta: {np.degrees(gt_theta)}")
     print("- - - - - - - - - - -")
 
 
-def handle_odom(sim, pyvis, odom_pose, dt):
+def handle_odom(
+    sim: Simulation, pyvis: PyVis, odom_pose: OdomPose, dt: float
+) -> tuple[float, float, float]:
     odom_vx, odom_vy, odom_w = sim.get_odometry(dt)
 
     odom_pose.theta += odom_w * dt
@@ -91,23 +98,34 @@ def handle_odom(sim, pyvis, odom_pose, dt):
 
     pyvis.add_odom_point(odom_pose.x, odom_pose.y, odom_pose.theta)
 
+    return odom_vx, odom_vy, odom_w
 
-def sim_loop(sim, pyvis, odom_pose):
+
+def sim_loop(
+    server: Server, sim: Simulation, pyvis: PyVis, odom_pose: OdomPose
+) -> None:
     while True:
-        vx, vy, w, dt = get_input()
+        input_val = get_input()
 
-        if vx is None:
+        if input_val is None:
             return
 
-        handle_ground_truth(sim, pyvis, vx, vy, w, dt)
-        handle_odom(sim, pyvis, odom_pose, dt)
+        vx, vy, w = input_val
+
+        handle_ground_truth(sim, pyvis, vx, vy, w, 1)
+        odom_vx, odom_vy, odom_w = handle_odom(sim, pyvis, odom_pose, 1)
+
+        server.send_message(f"{odom_vx} {odom_vy} {odom_w}")
 
 
-def main():
+def main() -> None:
+    server = Server()
     sim, pyvis, odom_pose = start_simulation(1, 1, 0)
-    sim_loop(sim, pyvis, odom_pose)
-    pyvis.hold()
+    sim_loop(server, sim, pyvis, odom_pose)
 
 
 if __name__ == "__main__":
-    main()
+    while True:
+        main()
+        print("\n\n[Restarting...]")
+        time.sleep(1)
