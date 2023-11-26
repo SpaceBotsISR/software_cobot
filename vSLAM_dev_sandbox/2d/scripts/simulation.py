@@ -8,7 +8,8 @@ class Simulation:
         fov_distance: float,
         fov_angle: float,
         landmarks: list[tuple[float, float]],
-        odom_sd: float = 0.1,
+        odom_range_sd: float = 0.1,
+        odom_angle_sd: float = 0.06,
         camera_range_sd: float = 0.05,
         camera_angle_sd: float = 0.02,
     ) -> None:
@@ -23,15 +24,23 @@ class Simulation:
         self.w = 0.0
 
         self.landmarks = landmarks
-        self.odom_sd = odom_sd
+        self.odom_range_sd = odom_range_sd
+        self.odom_angle_sd = odom_angle_sd
         self.camera_range_sd = camera_range_sd
         self.camera_angle_sd = camera_angle_sd
 
-    def odom_noise(self, dt) -> None:
+    def odom_range_noise(self, val, dt) -> None:
         noise = 0.0
 
-        for t in range(int(dt) + 1):
-            noise += np.random.normal(0, self.odom_sd)
+        for t in range(int(dt)):
+            noise += np.random.normal(0, self.odom_range_sd) * val
+        return noise
+
+    def odom_angle_noise(self, val, dt) -> None:
+        noise = 0.0
+
+        for t in range(int(dt)):
+            noise += np.random.normal(0, self.odom_angle_sd) * val
         return noise
 
     def camera_range_noise(self) -> None:
@@ -55,9 +64,9 @@ class Simulation:
         return self.x, self.y, self.theta
 
     def get_odometry(self, dt) -> tuple[float, float, float]:
-        odom_vx = self.vx + self.odom_noise(dt)
-        odom_vy = self.vy + self.odom_noise(dt)
-        odom_w = self.w + self.odom_noise(dt)
+        odom_vx = self.vx + self.odom_range_noise(self.vx, dt)
+        odom_vy = self.vy + self.odom_range_noise(self.vy, dt)
+        odom_w = self.w + self.odom_angle_noise(self.w, dt)
 
         return odom_vx, odom_vy, odom_w
 
