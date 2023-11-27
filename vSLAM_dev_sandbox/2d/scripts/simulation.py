@@ -33,14 +33,14 @@ class Simulation:
         noise = 0.0
 
         for t in range(int(dt)):
-            noise += np.random.normal(0, self.odom_range_sd) * val
+            noise += np.random.normal(0, self.odom_range_sd)
         return noise
 
     def odom_angle_noise(self, val, dt) -> None:
         noise = 0.0
 
         for t in range(int(dt)):
-            noise += np.random.normal(0, self.odom_angle_sd) * val
+            noise += np.random.normal(0, self.odom_angle_sd)
         return noise
 
     def camera_range_noise(self) -> None:

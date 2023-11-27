@@ -13,7 +13,8 @@
 class Client {
    public:
     Client(const char* serverIp, int serverPort);
-    std::vector<float> receive_msg();
+    std::vector<double> receive_msg();
+    void send_msg(const std::vector<double>& data);
     ~Client();
 
    private:
