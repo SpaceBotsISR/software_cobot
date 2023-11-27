@@ -18,8 +18,8 @@ Client::Client(const char *serverIp, int serverPort)
     }
 }
 
-std::vector<float> Client::receive_msg() {
-    std::vector<float> msg;
+std::vector<double> Client::receive_msg() {
+    std::vector<double> msg;
     char buffer[1024];
     memset(buffer, 0, sizeof(buffer));
     socklen_t len = sizeof(serverAddr_);
@@ -31,7 +31,6 @@ std::vector<float> Client::receive_msg() {
     }
 
     std::string str(buffer);
-    std::cout << "Received message: " << str << std::endl;
     std::string delimiter = " ";
     size_t pos = 0;
     std::string token;
@@ -44,6 +43,19 @@ std::vector<float> Client::receive_msg() {
     msg.push_back(std::stof(str));
 
     return msg;
+}
+
+void Client::send_msg(const std::vector<double> &data) {
+    std::string msg;
+    for (const double &value : data) {
+        msg += std::to_string(value) + " ";
+    }
+
+    ssize_t n = sendto(sockfd_, msg.c_str(), msg.length(), 0, (struct sockaddr *)&serverAddr_,
+                       sizeof(serverAddr_));
+    if (n < 0) {
+        perror("Error sending message");
+    }
 }
 
 Client::~Client() {

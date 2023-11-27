@@ -43,7 +43,7 @@ def start_simulation(
         FOV_ANGLE,
         LANDMARKS,
         odom_range_sd=0.35,
-        odom_angle_sd=0.1,
+        odom_angle_sd=0.35,
         camera_range_sd=0.08,
         camera_angle_sd=0.02,
     )
@@ -84,8 +84,8 @@ def handle_ground_truth(
 
 
 def handle_odom(
-    sim: Simulation, pyvis: PyVis, odom_pose: OdomPose, dt: float
-) -> tuple[float, float, float]:
+    server: Server, sim: Simulation, pyvis: PyVis, odom_pose: OdomPose, dt: float
+) -> None:
     odom_vx, odom_vy, odom_w = sim.get_odometry(dt)
 
     odom_pose.theta += odom_w * dt
@@ -97,8 +97,12 @@ def handle_odom(
     ) * dt
 
     pyvis.add_odom_point(odom_pose.x, odom_pose.y, odom_pose.theta)
+    server.send_message(f"{odom_vx} {odom_vy} {odom_w}")
 
-    return odom_vx, odom_vy, odom_w
+
+def handle_slam(server: Server, pyvis: PyVis) -> None:
+    slam_x, slam_y, slam_theta = server.receive_message()
+    pyvis.add_slam_point(slam_x, slam_y, slam_theta)
 
 
 def sim_loop(
@@ -113,14 +117,13 @@ def sim_loop(
         vx, vy, w = input_val
 
         handle_ground_truth(sim, pyvis, vx, vy, w, 1)
-        odom_vx, odom_vy, odom_w = handle_odom(sim, pyvis, odom_pose, 1)
-
-        server.send_message(f"{odom_vx} {odom_vy} {odom_w}")
+        handle_odom(server, sim, pyvis, odom_pose, 1)
+        handle_slam(server, pyvis)
 
 
 def main() -> None:
     server = Server()
-    sim, pyvis, odom_pose = start_simulation(1, 1, 0)
+    sim, pyvis, odom_pose = start_simulation(0, 0, 0)
     sim_loop(server, sim, pyvis, odom_pose)
 
 
@@ -128,4 +131,3 @@ if __name__ == "__main__":
     while True:
         main()
         print("\n\n[Restarting...]")
-        time.sleep(1)
