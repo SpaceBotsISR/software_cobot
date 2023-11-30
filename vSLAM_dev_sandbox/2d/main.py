@@ -1,10 +1,19 @@
-from simulation import Simulation
-from pyvis import PyVis
-from server import Server
-from dataclasses import dataclass
-import time
+from utils.simulation import Simulation
+from utils.pyvis import PyVis
+from utils.odom_pose import OdomPose
+from slam.gslam import GraphSlam
 
 import numpy as np
+
+STEP = 4
+ROTATE_90_CW = [[0, 0, np.radians(-90)]]
+ROTATE_90_CCW = [[0, 0, np.radians(90)]]
+UP = [[0, STEP, 0]]
+DOWN = [[0, -STEP, 0]]
+LEFT = [[-STEP, 0, 0]]
+RIGHT = [[STEP, 0, 0]]
+MOVES = RIGHT + UP + (5 * RIGHT + 2 * UP + 5 * LEFT + 2 * UP) * 2
+
 
 FOV_DISTANCE = 20
 FOV_ANGLE = np.radians(45)
@@ -27,13 +36,6 @@ LANDMARKS = [
 ]
 
 
-@dataclass
-class OdomPose:
-    x: float
-    y: float
-    theta: float
-
-
 def start_simulation(
     x: float, y: float, theta: float
 ) -> tuple[Simulation, PyVis, OdomPose]:
@@ -42,8 +44,8 @@ def start_simulation(
         FOV_DISTANCE,
         FOV_ANGLE,
         LANDMARKS,
-        odom_range_sd=0.35,
-        odom_angle_sd=0.35,
+        odom_range_sd=0.55,
+        odom_angle_sd=0.04,
         camera_range_sd=0.08,
         camera_angle_sd=0.02,
     )
@@ -57,7 +59,10 @@ def start_simulation(
     return sim, pyvis, odom_pose
 
 
-def get_input() -> tuple[float, float, float, float]:
+def get_input(moves: list = []) -> tuple[float, float, float, float]:
+    if len(moves) != 0:
+        return moves.pop(0)
+
     while True:
         s = input("[vx vy w]: ").split()
 
@@ -83,9 +88,7 @@ def handle_ground_truth(
     print("- - - - - - - - - - -")
 
 
-def handle_odom(
-    server: Server, sim: Simulation, pyvis: PyVis, odom_pose: OdomPose, dt: float
-) -> None:
+def handle_odom(sim: Simulation, pyvis: PyVis, odom_pose: OdomPose, dt: float) -> None:
     odom_vx, odom_vy, odom_w = sim.get_odometry(dt)
 
     odom_pose.theta += odom_w * dt
@@ -97,19 +100,17 @@ def handle_odom(
     ) * dt
 
     pyvis.add_odom_point(odom_pose.x, odom_pose.y, odom_pose.theta)
-    server.send_message(f"{odom_vx} {odom_vy} {odom_w}")
 
 
-def handle_slam(server: Server, pyvis: PyVis) -> None:
-    slam_x, slam_y, slam_theta = server.receive_message()
+def handle_slam(pyvis: PyVis, slam_x, slam_y, slam_theta) -> None:
     pyvis.add_slam_point(slam_x, slam_y, slam_theta)
 
 
-def sim_loop(
-    server: Server, sim: Simulation, pyvis: PyVis, odom_pose: OdomPose
-) -> None:
+def sim_loop(sim: Simulation, pyvis: PyVis, odom_pose: OdomPose) -> None:
+    moves = MOVES.copy()  # To insert manualy the moves set moves = []
+
     while True:
-        input_val = get_input()
+        input_val = get_input(moves)
 
         if input_val is None:
             return
@@ -117,17 +118,14 @@ def sim_loop(
         vx, vy, w = input_val
 
         handle_ground_truth(sim, pyvis, vx, vy, w, 1)
-        handle_odom(server, sim, pyvis, odom_pose, 1)
-        handle_slam(server, pyvis)
+        handle_odom(sim, pyvis, odom_pose, 1)
 
 
 def main() -> None:
-    server = Server()
     sim, pyvis, odom_pose = start_simulation(0, 0, 0)
-    sim_loop(server, sim, pyvis, odom_pose)
+    sim_loop(sim, pyvis, odom_pose)
 
 
 if __name__ == "__main__":
-    while True:
-        main()
-        print("\n\n[Restarting...]")
+    gs = GraphSlam()
+    # main()
