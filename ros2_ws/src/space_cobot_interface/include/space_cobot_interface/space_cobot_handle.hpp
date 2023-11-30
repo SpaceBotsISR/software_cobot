@@ -83,7 +83,7 @@ private:
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_shutdown(const rclcpp_lifecycle::State &state);
 
   rclcpp::Subscription<mavros_msgs::msg::State>::SharedPtr state_sub;
-  rclcpp::Subscription<space_cobot_interface::msg::PwmValues>::SharedPtr pwm_values;
+  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr pwm_values;
   rclcpp::Subscription<mavros_msgs::msg::RCIn>::SharedPtr fmode;
 
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr local_pos_pub;
@@ -120,7 +120,7 @@ private:
 
   // Subscriber Callbacks
   void state_cb(const mavros_msgs::msg::State::SharedPtr msg);
-  void pwmValuesCallback(const space_cobot_interface::msg::PwmValues::SharedPtr msg);
+  void pwmValuesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg);
 
   void set_mode_px4();
 
