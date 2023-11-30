@@ -123,7 +123,7 @@ void Space_Cobot_Interface::declare_publishers()
 void Space_Cobot_Interface::declare_subscribers()
 {
     this->state_sub = this->create_subscription<mavros_msgs::msg::State>("/mavros/state", 10, std::bind(&Space_Cobot_Interface::state_cb, this, _1));
-    this->pwm_values = this->create_subscription<space_cobot_interface::msg::PwmValues>("/important_values", 1000, std::bind(&Space_Cobot_Interface::pwmValuesCallback, this, _1));
+    this->pwm_values = this->create_subscription<std_msgs::msg::Float64MultiArray>("/important_values", 1000, std::bind(&Space_Cobot_Interface::pwmValuesCallback, this, _1));
 }
 
 void Space_Cobot_Interface::declare_clients()
@@ -152,17 +152,17 @@ void Space_Cobot_Interface::reset_clients()
     this->set_mode_client.reset();
 }
 
-void Space_Cobot_Interface::pwmValuesCallback(const space_cobot_interface::msg::PwmValues::SharedPtr msg)
+void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
 {
     mavros_msgs::msg::ActuatorControl actuator_control_msg;
 
     actuator_control_msg.header.stamp = this->get_clock()->now();
     actuator_control_msg.group_mix = 0;
 
-    for (int i = 0; i < 6; i++)
+    for (int i = 0; i < NUM_MOTORS; i++)
     {
-        // Convert to pixhawk system of -1 to 1, with 1500 == 0
-        actuator_control_msg.controls[i] = (msg->pwm[i] - 1500) / 500;
+
+        actuator_control_msg.controls[i] = msg->data[i];
     }
 
     this->actuator_controls_pub->publish(actuator_control_msg);
