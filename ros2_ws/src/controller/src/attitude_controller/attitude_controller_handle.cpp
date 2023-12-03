@@ -7,6 +7,10 @@ AttitudeControl::AttitudeControl(std::string node_name) : Node(node_name)
     declare_timer();
 
     desired_attitude = std::vector<double>(3);
+    angular_velocity_current = std::vector<double>(3);
+    angular_velocity_desired = std::vector<double>(3);
+
+    moment = Eigen::Vector3d(0, 0, 0);
 
     // Check in remote after
     this->euler_angle_rc = new RCControl(0, 1, 3);
@@ -18,18 +22,21 @@ AttitudeControl::~AttitudeControl()
 
 void AttitudeControl::declare_publisher()
 {
-    std::string topic_name = "desired_attuation";
+    std::string topic_name = "/desired_attitude";
     desired_attitude_pub = this->create_publisher<std_msgs::msg::Float64MultiArray>(topic_name, 10);
 }
 
 void AttitudeControl::declare_subscribers()
 {
-    std::string topic_name = "/mavros/rc_in";
+    std::string topic_name = "/mavros/rc/in";
     sub_remote = this->create_subscription<mavros_msgs::msg ::RCIn>(topic_name, 10, std::bind(&AttitudeControl::rc_callback, this, _1));
 
+    auto imu_QoS = rclcpp::QoS(10);
+    imu_QoS.best_effort();
+    imu_QoS.durability_volatile();
     topic_name = "/mavros/imu/data";
 
-    sub_imu = this->create_subscription<sensor_msgs::msg::Imu>(topic_name, 10, std::bind(&AttitudeControl::imu_callback, this, _1));
+    sub_imu = this->create_subscription<sensor_msgs::msg::Imu>(topic_name, imu_QoS, std::bind(&AttitudeControl::imu_callback, this, _1));
 }
 
 void AttitudeControl::declare_timer()
@@ -47,21 +54,22 @@ void AttitudeControl::imu_callback(const sensor_msgs::msg::Imu::SharedPtr msg)
 
 void AttitudeControl::rc_callback(const mavros_msgs::msg::RCIn::SharedPtr msg)
 {
-
     flight_mode_switch = msg->channels[flight_mode_channel];
 
-    flight_mode_switch = msg->channels[joystick_mode_channel];
+    joystick_mode_switch = msg->channels[joystick_mode_channel];
 
     euler_angle_rc->update(msg);
 }
 
 void AttitudeControl::select_flight_mode()
 {
-    if (joystick_mode_switch == 1099)
+
+    RCLCPP_INFO(get_logger(), "board %d  ", flight_mode_channel);
+    if (flight_mode_switch == 1099)
     {
         flight_mode = BOARD;
     }
-    else if (joystick_mode_switch == 1500)
+    else if (flight_mode_switch == 1500)
     {
         if (toggle_position_orientation < 1500)
         {
@@ -75,7 +83,7 @@ void AttitudeControl::select_flight_mode()
             }
         }
     }
-    else if (joystick_mode_switch == 1901)
+    else if (flight_mode_switch == 1901)
     {
         if (toggle_position_orientation < 1500)
         {
@@ -86,6 +94,11 @@ void AttitudeControl::select_flight_mode()
 
 void AttitudeControl::calculate_desired_attitude()
 {
+    select_flight_mode();
+
+
+    RCLCPP_INFO(get_logger(), "current flight mode :  %d", this->flight_mode);
+
     switch (this->flight_mode)
     {
     case MANUAL_ORIENTATION_WORLD_INCREMENTAL:
@@ -109,12 +122,25 @@ void AttitudeControl::calculate_desired_attitude()
     default:
         break;
     }
+
+    // converting Eigen::quaternion to RowVector4d
+    Eigen::RowVector4d q_desired = Eigen::RowVector4d(orientation_desired.w(), orientation_desired.x(), orientation_desired.y(), orientation_desired.z());
+    Eigen::Vector3d omega_curr = Eigen::RowVector3d(angular_velocity_current[0], angular_velocity_current[1], angular_velocity_current[2]);
+    Eigen::Vector3d omega_des = Eigen::RowVector3d(angular_velocity_desired[0], angular_velocity_desired[1], angular_velocity_desired[2]);
+    Eigen::Vector3d omegaD_des = Eigen::Vector3d(0, 0, 0);
+
+    moment = attitudeController(q_current, q_desired, omega_curr, omega_des, omegaD_des, att_K_P, att_K_D, err_int, att_K_I, time_step, windup_limit_up, windup_limit_down);
+
+    publish_desired_attitude();
 }
 
 void AttitudeControl::publish_desired_attitude()
 {
     auto msg = std_msgs::msg::Float64MultiArray();
-    msg.data = this->desired_attitude;
+    msg.data.resize(3); 
+    for (int i = 0; i < 3; i++) {
+        msg.data[i] =  moment[i];
+    }
     this->desired_attitude_pub->publish(msg);
 }
 
@@ -427,4 +453,87 @@ std::vector<double> AttitudeControl::quaternion_to_vector(geometry_msgs::msg::Qu
                               .eulerAngles(0, 1, 2);
 
     return {rpy[0], rpy[1], rpy[2]};
+}
+
+Eigen::Vector3d AttitudeControl::attitudeController(Eigen::RowVector4d q_current, Eigen::RowVector4d q_des, Eigen::Vector3d omega_current, Eigen::Vector3d omega_des, Eigen::Vector3d omegaD_des){
+    //K Constants, may have to be tuned
+
+    ///CALIBRATION:
+    ///se funciona no x manter posição 1,1 da matrix a 0.1 e depsois ajustar 2,2 e 3,3 para valores que funcionem
+    ///
+    /// Começar a k_ang de y e z a 0.01, subir em potências de 10 até obter uma velocidade de convergência que pareça razoavel.
+    /// Quando convergir ele vai oscilar e nesse momento começar a subir o ganho derivativo (K_omg)
+    ///
+    /// K_omg -> Para calibração dos restantes eixos colocar a zero.
+
+
+    ///Proportional gain                               axis:  x   y   z
+    Eigen::Matrix3d K_ang = Eigen::DiagonalMatrix<double, 3>(0.1,0.1,0.1);
+
+    ///Derivate gain                                    axis:   x      y      z
+    Eigen::Matrix3d K_omg = Eigen::DiagonalMatrix<double, 3>(0.1510,0.1510,0.1510);
+
+    //The inertia matrix is considered diagonal here, with I = [I(1,1), 0 , 0; 0, I(2,2), 0 ; 0, 0, I(3,3)];
+    Eigen::Matrix3d I = Eigen::Matrix3d::Identity();
+
+    //Rotation matrices
+    Eigen::Matrix3d R = getRotationMatrix(q_current);
+    Eigen::Matrix3d Rt = R.transpose();
+
+    Eigen::Matrix3d R_d = getDesiredRotationMatrix(q_des);
+    Eigen::Matrix3d R_dt = R_d.transpose();
+
+
+    //terms of the control equation
+    //angular and angular velocity errors
+    Eigen::Vector3d err_ang = (1/(2*sqrt(1+trace(R_dt*R))))*invskew(R_dt*R - Rt*R_d);
+    Eigen::Vector3d err_omg = omega_current - (Rt*R_d*omega_des);
+
+    //other terms
+    Eigen::Vector3d term3 = skew(Rt*R_d*omega_des)*I*(Rt*R_d*omega_des);
+    Eigen::Vector3d term4 = I*(Rt*R_d*omegaD_des);
+
+    //controller equation
+    Eigen::Vector3d M = -K_ang*err_ang - K_omg*err_omg + term3 +term4;
+
+    return M;
+}
+
+Eigen::Matrix3d AttitudeControl::getRotationMatrix(Eigen::RowVector4d q_current)
+{
+    Eigen::Matrix3d R;
+    R <<   powf(q_current(0),2.0)+powf(q_current(1),2.0) - powf(q_current(2),2.0) - powf(q_current(3),2.0), 2*(q_current(1)*q_current(2) - q_current(0)*q_current(3)), 2*(q_current(1)*q_current(3)+ q_current(0)*q_current(2)),
+            2*(q_current(1)*q_current(2) + q_current(0)*q_current(3)), powf(q_current(0),2.0)-powf(q_current(1),2.0) + powf(q_current(2),2.0) - powf(q_current(3),2.0), 2*(q_current(2)*q_current(3) - q_current(0)*q_current(1)),
+            2*(q_current(1)*q_current(3) - q_current(0)*q_current(2)), 2*(q_current(2)*q_current(3) + q_current(0)*q_current(1)), powf(q_current(0),2.0)-powf(q_current(1),2.0) - powf(q_current(2),2.0) + powf(q_current(3),2.0);
+    return R;
+}
+
+Eigen::Matrix3d AttitudeControl::getDesiredRotationMatrix(Eigen::RowVector4d q_des){
+   Eigen::Matrix3d Rd;
+    Rd <<   powf(q_des(0),2)+powf(q_des(1),2) - powf(q_des(2),2) - powf(q_des(3),2),    2*(q_des(1)*q_des(2) - q_des(0)*q_des(3)),                                   2*(q_des(1)*q_des(3)+ q_des(0)*q_des(2)),
+            2*(q_des(1)*q_des(2) + q_des(0)*q_des(3)),                                  powf(q_des(0),2)-powf(q_des(1),2) + powf(q_des(2),2) - powf(q_des(3),2),     2*(q_des(2)*q_des(3) - q_des(0)*q_des(1)),
+            2*(q_des(1)*q_des(3) - q_des(0)*q_des(2)),                                  2*(q_des(2)*q_des(3) + q_des(0)*q_des(1)),                                   powf(q_des(0),2)-powf(q_des(1),2) - powf(q_des(2),2) + powf(q_des(3),2);
+
+
+    return Rd;
+}
+
+Eigen::Vector3d AttitudeControl::invskew(Eigen::Matrix3d mat){
+    Eigen::Vector3d vec;
+    vec << mat(2,1), mat(0,2), mat(1,0);
+    return vec;
+}
+
+Eigen::Matrix3d AttitudeControl::skew(Eigen::Vector3d vec){
+    Eigen::Matrix3d mat;
+    mat <<  0,       -vec(2), vec(1),
+            vec(2),  0,       -vec(0),
+            -vec(1), vec(0),  0;
+    return mat;
+}
+
+
+float AttitudeControl::trace(Eigen::Matrix3d mat)
+{
+    return mat(0,0) + mat(1,1) + mat(2,2);
 }

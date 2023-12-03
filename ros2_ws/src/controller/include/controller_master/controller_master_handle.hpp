@@ -41,5 +41,6 @@ private:
 
     std::vector<double> desired_attitude;
     std::vector<double> desired_translation;
+
 };
 #endif

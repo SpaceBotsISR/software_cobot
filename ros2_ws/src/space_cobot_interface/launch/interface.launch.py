@@ -14,13 +14,15 @@ def generate_launch_description():
             name='interface_slave', 
             executable='spaceCobotInterface', 
             output='screen', 
+            emulate_tty=True, 
         ), 
         Node(
             package='space_cobot_interface', 
             namespace='interface', 
             name='interface_master', 
             executable='interface_master', 
-            output='screen'
+            output='screen', 
+            emulate_tty=True, 
         )
     ])
 
