@@ -10,10 +10,12 @@ int main(int argc, char **argv)
 {
     rclcpp::init(argc, argv);
 
-    rclcpp::executors::MultiThreadedExecutor executor;
+    rclcpp::executors::SingleThreadedExecutor executor   ; 
     auto node = std::make_shared<Space_Cobot_Interface>("space_cobot_interface", false);
     executor.add_node(node->get_node_base_interface());
     executor.spin();
+
+
 
     return 0;
 }

@@ -91,6 +91,9 @@ install(TARGETS spaceCobotInterface
   DESTINATION lib/${PROJECT_NAME}
 )
 
+install(TARGETS interface_master
+  DESTINATION lib/${PROJECT_NAME})
+
 install(
   DIRECTORY include/
   DESTINATION share/${PROJECT_NAME}
@@ -100,6 +103,13 @@ install(
   DIRECTORY include/
   DESTINATION include
 )
+
+install(
+  DIRECTORY launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+
 
 
 if(BUILD_TESTING)

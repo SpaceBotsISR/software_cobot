@@ -6,6 +6,7 @@
 #include <rclcpp/duration.hpp>
 #include <rclcpp/logging.hpp>
 #include <rclcpp/wait_result.hpp>
+#include <rclcpp/executor.hpp>
 
 #include "lifecycle_msgs/msg/state.hpp"
 #include "lifecycle_msgs/msg/transition.hpp"
@@ -31,7 +32,13 @@ public:
 
 private:
     void rc_callback(const mavros_msgs::msg::RCIn::SharedPtr msg);
+    void spin_node();
     rclcpp::Subscription<mavros_msgs::msg::RCIn>::SharedPtr rc_subscriber;
+
+    std::thread spin_thread;
+    rclcpp::TimerBase::SharedPtr spin_timer;
+    rclcpp::TimerBase::SharedPtr controll_watch_dog; 
+
 
     unsigned int kill_switch_channel = 4;
     unsigned int kill_switch_action_value = 1901;
@@ -43,8 +50,12 @@ private:
     bool node_restart = true;
     bool first_start = true;
 
+    rclcpp::executors::SingleThreadedExecutor executor;
+
     std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::GetState>> client_get_state;
     std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::ChangeState>> client_change_state;
+
+    void change_state_callback(const rclcpp::Client <lifecycle_msgs::srv::ChangeState>::SharedFuture future);
 
     // Function to change interface state with 100 ms timeout
     bool change_state(std::uint8_t transition, std::chrono::milliseconds time_ut = std::chrono::milliseconds(100));
