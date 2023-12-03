@@ -19,6 +19,7 @@
 #include <rclcpp/duration.hpp>
 #include <rclcpp/executor.hpp>
 #include <rclcpp/wait_for_message.hpp>
+#include <rclcpp/utilities.hpp>
 
 #include <eigen3/Eigen/Geometry>
 #include <opencv2/calib3d/calib3d.hpp>
@@ -74,6 +75,7 @@ class Space_Cobot_Interface : public rclcpp_lifecycle::LifecycleNode
 public:
   explicit Space_Cobot_Interface(std::string node_name, bool intra_process_coms = false);
 
+
 private:
   // Lifecycle node callbacks declare
   rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn on_configure(const rclcpp_lifecycle::State &state);
@@ -90,6 +92,8 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pub_torque;
   rclcpp::Publisher<mavros_msgs::msg::ActuatorControl>::SharedPtr actuator_controls_pub;
   rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr pub_force;
+
+  rclcpp::executors::SingleThreadedExecutor executor;
 
   rclcpp::Client<mavros_msgs::srv::SetMode>::SharedPtr set_mode_client;
   rclcpp::Client<mavros_msgs::srv::CommandBool>::SharedPtr arming_client;
@@ -124,8 +128,14 @@ private:
 
   void set_mode_px4();
 
+  // Used when control goes down
+  void actuator_zero_setpoint();
+
   rclcpp::TimerBase::SharedPtr px4_arming_timer;
   rclcpp::Time last_arming_request;
+  rclcpp::Time control_last_message; 
+
+  rclcpp::TimerBase::SharedPtr control_watchdog;
 };
 
 #endif // __SPACE_COBOT_INTERFACE_HPP__

@@ -7,33 +7,39 @@ Space_Cobot_Interface::Space_Cobot_Interface(std::string node_name, bool intra_p
     : rclcpp_lifecycle::LifecycleNode(node_name,
                                       rclcpp::NodeOptions().use_intra_process_comms(intra_process_coms))
 {
+    declare_publishers();
+    declare_subscribers();
+    declare_clients();
+    this->control_last_message = this->get_clock()->now();
 }
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Space_Cobot_Interface::on_configure(const rclcpp_lifecycle::State &state)
 {
     LifecycleNode::on_configure(state);
     // Node Startup
-    declare_publishers();
-    declare_subscribers();
-    declare_clients();
+        rclcpp::Time start_wait = this->get_clock()->now();
 
-    rclcpp::Time start_wait = this->get_clock()->now();
+    //auto msg = std::make_shared<mavros_msgs::msg::State>(); //  :.auto msg = std::make_shared<mavros::msg::State>();
 
-    auto msg = std::make_shared<mavros_msgs::msg::State>(); //  :.auto msg = std::make_shared<mavros::msg::State>();
-    auto node = std::make_shared<rclcpp::Node>("Space_cobot_interface_aux_node");
+    RCLCPP_INFO(get_logger(), "on configure()");
     do
     {
-        rclcpp::wait_for_message(msg, node, "/mavros/state", std::chrono::milliseconds(500));
+        rclcpp::sleep_for(std::chrono::nanoseconds(500000000));
+        RCLCPP_INFO(get_logger(), "on_configure(1)");
 
-    } while (!msg->connected && this->get_clock()->now() - start_wait < rclcpp::Duration::from_seconds(3));
+    } while (!current_state.connected && this->get_clock()->now() - start_wait > rclcpp::Duration::from_seconds(3) );
 
-    if (!msg->connected)
+
+    RCLCPP_INFO(get_logger(), "on configure3()");
+    if (!current_state.connected)
     {
         RCLCPP_ERROR(this->get_logger(), "Failed to connect to PX4");
         return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
     }
 
-    this->current_state = *msg;
+    RCLCPP_INFO(get_logger(), "Finished Configure");
+
+    //this->current_state = *msg;
 
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
@@ -57,6 +63,9 @@ rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Space_
 
     // Make sure i keep setting px4 mode to offboard
     this->px4_arming_timer = this->create_wall_timer(std::chrono::milliseconds(300), std::bind(&Space_Cobot_Interface::set_mode_px4, this));
+    this->control_watchdog = this->create_wall_timer(
+        std::chrono::milliseconds(10),
+        std::bind(&Space_Cobot_Interface::actuator_zero_setpoint, this));
 
     if (!rclcpp::ok())
     {
@@ -64,21 +73,26 @@ rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Space_
         return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::ERROR;
     }
 
+
+
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
+
+
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Space_Cobot_Interface::on_deactivate(const rclcpp_lifecycle::State &state)
 {
     // Send zero force and torque one last time
 
     LifecycleNode::on_deactivate(state);
+    this->px4_arming_timer.reset();
+    this->control_watchdog.reset();
 
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Space_Cobot_Interface::on_cleanup(const rclcpp_lifecycle::State &state)
 {
-
     LifecycleNode::on_cleanup(state);
     reset_publishers();
     reset_subscribers();
@@ -123,7 +137,7 @@ void Space_Cobot_Interface::declare_publishers()
 void Space_Cobot_Interface::declare_subscribers()
 {
     this->state_sub = this->create_subscription<mavros_msgs::msg::State>("/mavros/state", 10, std::bind(&Space_Cobot_Interface::state_cb, this, _1));
-    this->pwm_values = this->create_subscription<std_msgs::msg::Float64MultiArray>("/important_values", 1000, std::bind(&Space_Cobot_Interface::pwmValuesCallback, this, _1));
+    this->pwm_values = this->create_subscription<std_msgs::msg::Float64MultiArray>("/desired_attuation", 1000, std::bind(&Space_Cobot_Interface::pwmValuesCallback, this, _1));
 }
 
 void Space_Cobot_Interface::declare_clients()
@@ -155,40 +169,74 @@ void Space_Cobot_Interface::reset_clients()
 void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
 {
     mavros_msgs::msg::ActuatorControl actuator_control_msg;
+    RCLCPP_WARN(get_logger(), "INSIDE PWM values callback ");
 
-    actuator_control_msg.header.stamp = this->get_clock()->now();
+    this->control_last_message = actuator_control_msg.header.stamp = this->get_clock()->now();
     actuator_control_msg.group_mix = 0;
 
     for (int i = 0; i < NUM_MOTORS; i++)
     {
-
         actuator_control_msg.controls[i] = msg->data[i];
     }
 
     this->actuator_controls_pub->publish(actuator_control_msg);
 }
 
+
+void Space_Cobot_Interface::actuator_zero_setpoint(){
+    if (this->get_clock()->now() - control_last_message > std::chrono::milliseconds(100)){
+        
+        mavros_msgs::msg::ActuatorControl actuator_control_msg; 
+
+        actuator_control_msg.header.stamp = this->get_clock()->now(); 
+        actuator_control_msg.group_mix = 0;
+
+        for (int i = 0; i < 6; i++) {
+            actuator_control_msg.controls[i] = 0.0;
+        }
+    
+        this->actuator_controls_pub->publish(actuator_control_msg);
+
+    } 
+    return;
+}
+
 void Space_Cobot_Interface::state_cb(const mavros_msgs::msg::State::SharedPtr msg)
 {
     current_state = *msg;
+    RCLCPP_INFO(get_logger(), "state_cb");
 }
 
 void Space_Cobot_Interface::set_mode_px4()
 {
+
     if (current_state.mode == "OFFBOARD" && current_state.armed &&
         this->get_clock()->now() - last_arming_request < rclcpp::Duration::from_seconds(2.5))
     {
         return;
     }
+    geometry_msgs::msg::PoseStamped pose;
+    pose.pose.position.x = 0;
+    pose.pose.position.y = 0;
+    pose.pose.position.z = 2;
+    pose.header.stamp = this->get_clock()->now();
+
+    //  Just gonna send one time and see if it works
+    // for (int i = 100; i > 0; --i)
+    //{
+    this->local_pos_pub->publish(pose);
+    //}
 
     last_arming_request = this->get_clock()->now();
 
-    if (current_state.mode != "OFFBOARD" && current_state.armed)
+    if (current_state.mode != "OFFBOARD" )
     {
+        RCLCPP_INFO(get_logger(), "Changing to off board");
         change_px4_custom_mode("OFFBOARD");
     }
-    else if (!current_state.armed)
+    if (!current_state.armed)
     {
+        RCLCPP_INFO(get_logger(), "changing to armed ");
         change_px4_arm_state(true);
     }
 }
@@ -197,42 +245,47 @@ void Space_Cobot_Interface::change_px4_custom_mode(std::string new_mode)
 {
     if (current_state.mode == new_mode)
     {
+        RCLCPP_INFO(get_logger(), "already %s", new_mode.c_str());
         return;
     }
 
     // Set the flight mode to offboard
     auto set_mode_req = std::make_shared<mavros_msgs::srv::SetMode::Request>();
     set_mode_req->custom_mode = new_mode;
+    RCLCPP_INFO(get_logger(), "changing to %s", new_mode.c_str());
 
     auto result = this->set_mode_client->async_send_request(std::move(set_mode_req));
-    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result, std::chrono::milliseconds(50)) == rclcpp::FutureReturnCode::SUCCESS)
-    {
-        RCLCPP_INFO(this->get_logger(), "Set mode sent %s", new_mode.c_str());
-    }
-    else
-    {
-        RCLCPP_ERROR(this->get_logger(), "Failed to set mode");
-    }
+    //if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result, std::chrono::milliseconds(50)) == rclcpp::FutureReturnCode::SUCCESS)
+    //{
+    //    RCLCPP_INFO(this->get_logger(), "Set mode sent %s", new_mode.c_str());
+    //}
+    //else
+    //{
+    //    RCLCPP_ERROR(this->get_logger(), "Failed to set mode");
+    //}
 }
 
 void Space_Cobot_Interface::change_px4_arm_state(bool arm)
 {
     if (current_state.armed == arm)
     {
+        RCLCPP_INFO(get_logger(), "already armed");
         return;
     }
+
 
     // Arm the drone
     auto arm_req = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
     arm_req->value = arm;
 
-    auto arm_result = this->arming_client->async_send_request(arm_req);
-    if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), arm_result, std::chrono::milliseconds(50)) == rclcpp::FutureReturnCode::SUCCESS)
-    {
-        RCLCPP_INFO(this->get_logger(), "Arming sent %s", arm_result.get()->success ? "OK" : "FAILED");
-    }
-    else
-    {
-        RCLCPP_ERROR(this->get_logger(), "Failed to arm");
-    }
+    RCLCPP_INFO(get_logger(), "send arm request");
+     auto arm_result = this->arming_client->async_send_request(arm_req);
+    //if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), arm_result, std::chrono::milliseconds(50)) == rclcpp::FutureReturnCode::SUCCESS)
+    //{
+    //    RCLCPP_INFO(this->get_logger(), "Arming sent %s", arm_result.get()->success ? "OK" : "FAILED");
+    //}
+    //else
+    //{
+    //    RCLCPP_ERROR(this->get_logger(), "Failed to arm");
+    //}
 }
