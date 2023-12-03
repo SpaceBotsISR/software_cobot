@@ -11,13 +11,14 @@ Space_Cobot_Interface::Space_Cobot_Interface(std::string node_name, bool intra_p
     declare_subscribers();
     declare_clients();
     this->control_last_message = this->get_clock()->now();
+    this->last_arming_request = this->get_clock()->now();
 }
 
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Space_Cobot_Interface::on_configure(const rclcpp_lifecycle::State &state)
 {
     LifecycleNode::on_configure(state);
     // Node Startup
-        rclcpp::Time start_wait = this->get_clock()->now();
+    rclcpp::Time start_wait = this->get_clock()->now();
 
     //auto msg = std::make_shared<mavros_msgs::msg::State>(); //  :.auto msg = std::make_shared<mavros::msg::State>();
 
