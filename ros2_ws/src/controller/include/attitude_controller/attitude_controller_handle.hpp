@@ -90,6 +90,11 @@ private:
     sensor_msgs::msg::Imu::SharedPtr imu_data;
     geometry_msgs::msg::Quaternion imu_quaternion;
 
+    std::vector<double> angular_velocity_current;
+    std::vector<double> angular_velocity_desired;
+
+    Eigen::Vector3d moment;
+
     unsigned int flight_mode_channel = 5;
     unsigned int joystick_mode_channel = 7;
 
@@ -115,6 +120,13 @@ private:
     void manual_orientation_world_absolute();
     void open_loop_torque_world();
     void open_loop_torque_body();
+
+    Eigen::Vector3d attitudeController(Eigen::RowVector4d q_current, Eigen::RowVector4d q_des, Eigen::Vector3d omega_current, Eigen::Vector3d omega_des, Eigen::Vector3d omegaD_des);
+    Eigen::Matrix3d getRotationMatrix(Eigen::RowVector4d q_current);
+    Eigen::Matrix3d getDesiredRotationMatrix(Eigen::RowVector4d q_des);
+    float trace(Eigen::Matrix3d mat);
+    Eigen::Vector3d invskew(Eigen::Matrix3d mat);
+    Eigen::Matrix3d skew(Eigen::Vector3d vec);
 };
 
 #endif

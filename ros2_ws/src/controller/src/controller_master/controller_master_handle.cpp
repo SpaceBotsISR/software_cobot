@@ -8,7 +8,7 @@ ControllerMasterHandle::ControllerMasterHandle(std::string node_name) : Node(nod
 
     desired_attitude = std::vector<double>(3);
     desired_translation = std::vector<double>(3);
-}
+
 
 ControllerMasterHandle::~ControllerMasterHandle()
 {
@@ -16,16 +16,16 @@ ControllerMasterHandle::~ControllerMasterHandle()
 
 void ControllerMasterHandle::declare_publisher()
 {
-    std::string topic_name = "desired_attuation";
+    std::string topic_name = "/desired_attuation";
     desired_attuation_pub = this->create_publisher<std_msgs::msg::Float64MultiArray>(topic_name, 10);
 }
 
 void ControllerMasterHandle::declare_subscribers()
 {
-    std::string topic_name = "desired_attitude";
+    std::string topic_name = "/desired_attitude";
     desired_attitude_sub = this->create_subscription<std_msgs::msg::Float64MultiArray>(topic_name, 10, std::bind(&ControllerMasterHandle::desired_attitude_callback, this, _1));
 
-    topic_name = "desired_translation";
+    topic_name = "/desired_translation";
     desired_translation_sub = this->create_subscription<std_msgs::msg::Float64MultiArray>(topic_name, 10, std::bind(&ControllerMasterHandle::desired_translation_callback, this, _1));
 }
 
@@ -41,9 +41,12 @@ void ControllerMasterHandle::publish_desired_attuation()
 
     desired_translation_ << this->desired_translation[0], this->desired_translation[1], this->desired_translation[2];
 
+
+    /* ////////////////// ATITUDE CONTROL ////////////////// */
+
     Eigen::Vector3d desired_attitude_(0, 0, 0);
     desired_attitude_ << this->desired_attitude[0], this->desired_attitude[1], this->desired_attitude[2];
-
+    
     Eigen::VectorXd u = getActuationVector(desired_translation_, desired_attitude_);
     double RPM[NUM_MOTORS];
     double actuator_pwm_values[NUM_MOTORS];
@@ -70,7 +73,6 @@ void ControllerMasterHandle::publish_desired_attuation()
     for (int i = 0; i < NUM_MOTORS; i++)
     {
         actuator_pwm_values[i] = (actuator_pwm_values[i] - 1500) / 500;
-        actuator_pwm_values[i] = 100;
         msg.data[i] = actuator_pwm_values[i];
     }
 
