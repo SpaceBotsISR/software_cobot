@@ -4,12 +4,7 @@ import scipy.optimize as sopt
 """
 w(3x1) - angular velocity
 
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 R(3x3) - Atitute expressed as a rotation matrix
-
-                                         | cos(alpha)cos(betha)    cos(alpha)sin(betha)sin(gamma) - sin(alpha)cos(gamma)    cos(alpha)sin(betha)cos(gamma) + sin(alpha)sin(gamma) |
-    R = Rz(alpha).Ry(betha).Rx(gamma) =  | sin(alpha)cos(betha)    sin(alpha)sin(betha)sin(gamma) + cos(alpha)cos(gamma)    sin(alpha)sin(betha)cos(gamma) - cos(alpha)sin(gamma) |
-                                         |       -sin(betha)                            cos(betha)sin(gamma)                                     cos(betha)cos(gamma)             |
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 u(1x6) - actuation vector
@@ -37,12 +32,7 @@ with
 """
 
 G = 9.81
-g = np.array([
-    [0], 
-    [0], 
-    [-G]
-    ], dtype = float)
-
+g = np.array([[0], [0], [-G]], dtype=float)
 
 
 class Estimator:
@@ -53,9 +43,9 @@ class Estimator:
         self.R = []
         self.u = []
 
-        self.L = np.zeros((3,3), dtype=float)
-        self.c = np.zeros((3,1), dtype=float)
-        self.A1M = np.zeros((6,6), dtype=float)
+        self.L = np.zeros((3, 3), dtype=float)
+        self.c = np.zeros((3, 1), dtype=float)
+        self.A1M = np.zeros((6, 6), dtype=float)
 
         self.read_file(file_name)
 
@@ -67,12 +57,31 @@ class Estimator:
             print(f"w:\n{self.w[i]}")
             print(f"R:\n{self.R[i]}")
             print(f"u:\n{self.u[i]}")
-    
-    def parse_line(self, line):
-        line = line.replace("\n", "").replace(" ", ",")
-        numbers = line.strip().split(",")
 
-        return np.array([[float(n) for n in numbers if n != '']])
+    def get_R(self, line):
+        """
+                                             | cos(alpha)cos(betha)    cos(alpha)sin(betha)sin(gamma) - sin(alpha)cos(gamma)    cos(alpha)sin(betha)cos(gamma) + sin(alpha)sin(gamma) |
+        R = Rz(alpha).Ry(betha).Rx(gamma) =  | sin(alpha)cos(betha)    sin(alpha)sin(betha)sin(gamma) + cos(alpha)cos(gamma)    sin(alpha)sin(betha)cos(gamma) - cos(alpha)sin(gamma) |
+                                             |       -sin(betha)                            cos(betha)sin(gamma)                                     cos(betha)cos(gamma)             |
+        """
+        alpha, betha, gamma = line.replace(" ", ",").split(",")
+        cos = np.cos
+        sin = np.sin
+        R = np.array(
+            [
+                [
+                    cos(alpha) * cos(betha),
+                    cos(alpha) * sin(betha) * sin(gamma) - sin(alpha) * cos(gamma),
+                    cos(alpha) * sin(betha) * cos(gamma) + sin(alpha) * sin(gamma),
+                ],
+                [
+                    sin(alpha) * cos(betha),
+                    sin(alpha) * sin(betha) * sin(gamma) + cos(alpha) * cos(gamma),
+                    sin(alpha) * sin(betha) * cos(gamma) - cos(alpha) * sin(gamma),
+                ],
+                [-sin(betha), cos(betha) * sin(gamma), cos(betha) * cos(gamma)],
+            ]
+        )
 
     def read_file(self, file_name):
         with open(file_name) as fp:
@@ -84,10 +93,10 @@ class Estimator:
                 self.timestamp.append(float(m[0].strip()))
                 self.w_dot.append(self.parse_line(m[1]).T)
                 self.w.append(self.parse_line(m[2]).T)
-                self.R.append(self.parse_line(m[3]).reshape(3,3))
+                self.R.append(self.get_R(m[3]))
                 self.u.append(self.parse_line(m[4]).T)
 
-    def calc_S(v):
+    def get_S(v):
         return np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
 
     def calc_residuals(self):
@@ -95,15 +104,21 @@ class Estimator:
 
         for i in range(len(self.timestamp)):
             # TODO: check the R part of the model
-            model = 1/self.timestamp[i] * self.L @ self.L.T @ (self.w[i+1] - self.w[i]) 
-            + self.calc_S((self.w[i+1] + self.w[i])/2) @ self.L @ self.L.T @ ((self.w[i+1] + self.w[i])/2) 
-            - self.calc_S(self.c) @ self.R[i].T @ g - self.A1M((self.u[i+1] + self.u[i])/2)
+            model = (
+                1 / self.timestamp[i] * self.L @ self.L.T @ (self.w[i + 1] - self.w[i])
+            )
+            +self.calc_S((self.w[i + 1] + self.w[i]) / 2) @ self.L @ self.L.T @ (
+                (self.w[i + 1] + self.w[i]) / 2
+            )
+            -self.calc_S(self.c) @ self.R[i].T @ g - self.A1M(
+                (self.u[i + 1] + self.u[i]) / 2
+            )
+
+
 def main():
     est = Estimator()
     est.print()
 
 
-
 if __name__ == "__main__":
     main()
-
