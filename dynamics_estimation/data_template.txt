@@ -1,0 +1,12 @@
+tk
+w_dot_tk_x w_dot_tk_y w_dot_tk_z
+w_tk_x w_tk_y w_tk_z 
+R_tk[0,0] R_tk[0,1] R_tk[0,2] R_tk[1,0] R_tk[1,1] R_tk[1,2] R_tk[0,0] R_tk[0,1] R_tk[0,2] R_tk[2,0] R_tk[2,1] R_tk[2,2] 
+u_tk[0] u_tk[1] u_tk[2] u_tk[3] u_tk[4] u_tk[5]
+
+tk
+w_dot_tk_x w_dot_tk_y w_dot_tk_z
+w_tk_x w_tk_y w_tk_z 
+R_tk[0,0] R_tk[0,1] R_tk[0,2] R_tk[1,0] R_tk[1,1] R_tk[1,2] R_tk[0,0] R_tk[0,1] R_tk[0,2] R_tk[2,0] R_tk[2,1] R_tk[2,2] 
+u_tk[0] u_tk[1] u_tk[2] u_tk[3] u_tk[4] u_tk[5]
+
