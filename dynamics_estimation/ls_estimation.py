@@ -18,11 +18,8 @@ parameters = {(L, c, A1m)}
 s.t. L, c, A1M
 
 f(x) = 1/dt * L @ L.T(w_k+1-w_k) + S(w_k,k+1) @ L @ L.T @ w_k,k+1) - S(c) R_k,k+1 * g - A_1M_(u_k,k+1) ||^2 
-@
-with 
-           | 0     -w3    w2 |
-    S(w) = | w3     0    -w1 |
-           |-w2     w1    0  |
+
+with
 
     w_k,k+1 = (w_k+1 + w_k)/2
 
@@ -97,9 +94,14 @@ class Estimator:
                 self.u.append(self.parse_line(m[4]).T)
 
     def get_S(v):
+        """
+                |   0    -v3     v2 |
+        S(v) =  |  v3      0    -v1 |
+                | -v2     v1      0 |
+        """
         return np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
 
-    def calc_residuals(self):
+    def cost_function(self):
         residuals = []
 
         for i in range(len(self.timestamp)):
@@ -107,10 +109,10 @@ class Estimator:
             model = (
                 1 / self.timestamp[i] * self.L @ self.L.T @ (self.w[i + 1] - self.w[i])
             )
-            +self.calc_S((self.w[i + 1] + self.w[i]) / 2) @ self.L @ self.L.T @ (
+            +self.get_S((self.w[i + 1] + self.w[i]) / 2) @ self.L @ self.L.T @ (
                 (self.w[i + 1] + self.w[i]) / 2
             )
-            -self.calc_S(self.c) @ self.R[i].T @ g - self.A1M(
+            -self.get_S(self.c) @ self.R[i].T @ g - self.A1M(
                 (self.u[i + 1] + self.u[i]) / 2
             )
 
@@ -118,6 +120,22 @@ class Estimator:
 def main():
     est = Estimator()
     est.print()
+
+    initial_params_list = [est.L, est.c, est.A1M]
+    initial_params = np.concatenate([param.flatten() for param in initial_params_list])
+
+    result = sopt.least_squares(est.cost_function, initial_params, args = (est.w_dot, est.w, est.R, est.u))
+
+    optimized_L = result.x[:9].reshape((3, 3))
+    optimized_c = result.x[9:12].reshape((3, 1))
+    optimized_A1M = result.x[12:].reshape((6, 6))
+
+    print("Optimized L:")
+    print(optimized_L)
+    print("\nOptimized c:")
+    print(optimized_c)
+    print("\nOptimized Parameter 3:")
+    print(optimized_A1M)
 
 
 if __name__ == "__main__":
