@@ -1,100 +1,114 @@
-import numpy as np
 import gtsam
-from gtsam.symbol_shorthand import X, V
-
-from imu import IMU  # Assuming this is similar to the IMUHandler class
-
-
-def vector3(x, y, z):
-    return np.array([x, y, z], dtype=float)
+import numpy as np
+from gtsam.symbol_shorthand import X
+from scipy.spatial.transform import Rotation as R
 
 
 class GraphSlam:
-    def __init__(
-        self,
-        timestamp: float,
-        accelerometer_cov: float = 1e-3,
-        gyroscope_cov: float = 1e-4,
-        integration_cov: float = 1e-4,
-        g: float = 9.81,
-    ) -> None:
-        self.imu = IMU(timestamp)
-
-        self.key = 0  # Incremental key for the factor graph
+    def __init__(self):
         self.isam = gtsam.ISAM2()
         self.graph = gtsam.NonlinearFactorGraph()
         self.initial_estimate = gtsam.Values()
 
-        # Set initial conditions
-        self.initial_pose = gtsam.Pose3()
-        self.initial_velocity = gtsam.Vector3(0, 0, 0)
-        self.initial_bias = gtsam.imuBias.ConstantBias()
+        # TODO: tune noise model
+        n = 0.1
+        self.pose_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([n, n, 0, 0, 0, n]))
 
-        self._add_initial_priors()
+        self.current_pose = gtsam.Pose3()  # Initialize with default pose
+        self.time_step = 0
 
-    def _add_initial_priors(self):
+    @staticmethod
+    def roll_pitch_yaw_from_R(
+        rotation_matrix: np.ndarray,
+    ) -> tuple[float, float, float]:
         """
-        Add initial priors to the graph and initial estimates.
+        Extract roll, pitch, yaw from rotation matrix
+
+        :param rotation_matrix: 3x3 rotation matrix
+
+        :return: roll, pitch, yaw
         """
-        # Noise models
-        pose_prior_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([0.1] * 6))
-        velocity_prior_noise = gtsam.noiseModel.Isotropic.Sigma(3, 0.1)
-        bias_prior_noise = gtsam.noiseModel.Isotropic.Sigma(6, 0.1)
 
-        # Add pose, velocity, and bias priors to the graph
-        self.graph.add(
-            gtsam.PriorFactorPose3(X(self.key), self.initial_pose, pose_prior_noise)
+        rotation = R.from_matrix(rotation_matrix)
+
+        roll, pitch, yaw = rotation.as_euler(
+            "zyx", degrees=True
+        )  # Use 'radians' if you prefer radians over degrees
+
+        return roll, pitch, yaw
+
+    def add_imu_measurments(
+        self, position_increment: np.array, rotation_xyz: np.array, delta_t: float
+    ) -> tuple[float, float, float]:
+        """
+        Add IMU measurements to the graph and get updated pose
+
+        :param position_increment: 3x1 numpy array with position increment
+        :param rotation_xyz: 3x1 numpy array with rotation increment (Euler angles)
+        :param delta_t: Time interval in seconds
+
+        :return: Updated pose
+        """
+        self.time_step += 1
+
+        # Update pose
+        current_position = self.current_pose.translation()
+        new_position = current_position + position_increment * delta_t
+
+        # Orientation
+        current_orientation = R.from_matrix(self.current_pose.rotation().matrix())
+        delta_rotation = R.from_euler("xyz", rotation_xyz * delta_t)
+        new_orientation = delta_rotation * current_orientation
+        new_orientation_quat = new_orientation.as_quat()
+
+        # Update current pose
+        self.current_pose = gtsam.Pose3(
+            gtsam.Rot3(new_orientation.as_matrix()), new_position
         )
-        self.graph.add(
-            gtsam.PriorFactorVector(
-                V(self.key), self.initial_velocity, velocity_prior_noise
-            )
+        # Add the current pose as an initial estimate for the new time step
+        self.initial_estimate.insert(X(self.time_step), self.current_pose)
+
+        # Add a factor to the graph for this new pose
+        pose_factor = gtsam.PriorFactorPose3(
+            X(self.time_step), self.current_pose, self.pose_noise
         )
-        self.graph.add(
-            gtsam.PriorFactorConstantBias(
-                gtsam.symbol("b", self.key), self.initial_bias, bias_prior_noise
-            )
-        )
+        self.graph.add(pose_factor)
 
-        # Add pose, velocity, and bias priors to the initial estimate
-        self.initial_estimate.insert(X(self.key), self.initial_pose)
-        self.initial_estimate.insert(V(self.key), self.initial_velocity)
-        self.initial_estimate.insert(gtsam.symbol("b", self.key), self.initial_bias)
+        # Update ISAM2 and calculate the best estimate
+        self.isam.update(self.graph, self.initial_estimate)
+        self.graph.resize(0)
+        self.initial_estimate.clear()
 
-    def add_imu_data(
-        self,
-        timestamp: float,
-        linear_acceleration: np.ndarray,
-        angular_velocity: np.ndarray,
-    ) -> None:
-        dt = timestamp - self.imu.last_timestamp
-        self.imu.add_measurement(linear_acceleration, angular_velocity, dt)
-
-        new_key = self.key + 1
-        self.key += 1
-
-        # Predict the new state
-        predicted_pose = self.initial_pose.retract(np.random.rand(6) * 0.01)
-        predicted_velocity = self.initial_velocity + np.random.rand(3) * 0.01
-
-        # Add the predicted state to the initial estimate
-        self.initial_estimate.insert(X(new_key), predicted_pose)
-        self.initial_estimate.insert(V(new_key), predicted_velocity)
-
-        # Add IMU factor to the graph
-        self.graph.add(
-            self.create_imu_factor(
-                X(self.key - 1), V(self.key - 1), X(new_key), V(new_key)
-            )
-        )
-
-        self.isam.update(self.graph, self.initial_estimate)  # Update iSAM
-
-        # Clear the graph and estimates for the next iteration
-        self.graph = gtsam.NonlinearFactorGraph()
-        self.initial_estimate = gtsam.Values()
-        self.reset_preintegrator()
-
-    def get_current_pose(self) -> gtsam.Pose3:
         current_estimate = self.isam.calculateEstimate()
-        return current_estimate.atPose3(X(self.key))
+        return (
+            current_estimate.atPose3(X(self.time_step)).x(),
+            current_estimate.atPose3(X(self.time_step)).y(),
+            current_estimate.atPose3(X(self.time_step)).rotation().yaw(),
+        )
+
+
+def _test():
+    pose_estimator = GraphSlam()
+    position_increment = np.array([500, 0.0, 0.0])  # Example position increment
+    rotation_xyz = np.array(
+        [0.0, 0.0, 0.1]
+    )  # Example rotation increment (Euler angles)
+    delta_t = 0.1  # Time interval in seconds
+
+    pose_estimator.add_imu_measurments(position_increment, rotation_xyz, delta_t)
+
+    position_increment = np.array([500, 0.0, 0.0])  # Example position increment
+    rotation_xyz = np.array(
+        [0.0, 0.0, 0.1]
+    )  # Example rotation increment (Euler angles)
+    delta_t = 0.1  # Time interval in seconds
+
+    x, y, yaw = pose_estimator.add_imu_measurments(
+        position_increment, rotation_xyz, delta_t
+    )
+
+    print(f"Pose: {x}, {y}, {yaw}")
+
+
+if __name__ == "__main__":
+    _test()
