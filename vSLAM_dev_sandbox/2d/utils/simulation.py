@@ -63,7 +63,7 @@ class Simulation:
 
         return self.x, self.y, self.theta
 
-    def get_odometry(self, dt) -> tuple[float, float, float]:
+    def get_imu_measurments(self, dt) -> tuple[float, float, float]:
         odom_vx = self.vx + self.odom_range_noise(self.vx, dt)
         odom_vy = self.vy + self.odom_range_noise(self.vy, dt)
         odom_w = self.w + self.odom_angle_noise(self.w, dt)
