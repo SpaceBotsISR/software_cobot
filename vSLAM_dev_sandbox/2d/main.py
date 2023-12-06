@@ -5,6 +5,7 @@ from slam.gslam import GraphSlam
 
 import numpy as np
 
+# Moves
 STEP = 4
 ROTATE_90_CW = [[0, 0, np.radians(-90)]]
 ROTATE_90_CCW = [[0, 0, np.radians(90)]]
@@ -14,7 +15,7 @@ LEFT = [[-STEP, 0, 0]]
 RIGHT = [[STEP, 0, 0]]
 MOVES = RIGHT + UP + (5 * RIGHT + 2 * UP + 5 * LEFT + 2 * UP) * 2
 
-
+# Simulation params
 FOV_DISTANCE = 20
 FOV_ANGLE = np.radians(45)
 LANDMARKS = [
@@ -39,6 +40,15 @@ LANDMARKS = [
 def start_simulation(
     x: float, y: float, theta: float
 ) -> tuple[Simulation, PyVis, OdomPose]:
+    """
+    Instanciate simulation and visualization objects
+
+    :param x: Initial x position
+    :param y: Initial y position
+    :param theta: Initial theta
+
+    :return: Simulation, PyVis, OdomPose
+    """
     sim = Simulation(
         (x, y, theta),
         FOV_DISTANCE,
@@ -59,7 +69,14 @@ def start_simulation(
     return sim, pyvis, odom_pose
 
 
-def get_input(moves: list = []) -> tuple[float, float, float, float]:
+def get_gt_v(moves: list = []) -> tuple[float, float, float, float]:
+    """
+    Simulates IMU measurements
+
+    :param moves: List of moves to simulate
+
+    :return: vx, vy, w
+    """
     if len(moves) != 0:
         return moves.pop(0)
 
@@ -82,50 +99,97 @@ def get_input(moves: list = []) -> tuple[float, float, float, float]:
 def handle_ground_truth(
     sim: Simulation, pyvis: PyVis, vx: float, vy: float, w: float, dt: float
 ) -> None:
+    """
+    Simulates ground truth measurements
+
+    :param sim: Simulation object
+    :param pyvis: PyVis object
+    :param vx: Linear velocity in x
+    :param vy: Linear velocity in y
+    :param w: Angular velocity
+    :param dt: Time interval
+    """
     gt_x, gt_y, gt_theta = sim.compute_next_pose(vx, vy, w, dt)
     pyvis.add_ground_truth_point(gt_x, gt_y, gt_theta)
     print(f"gt_x-> {gt_x}, gt_y: {gt_y}, gt_theta: {np.degrees(gt_theta)}")
     print("- - - - - - - - - - -")
 
 
-def handle_odom(sim: Simulation, pyvis: PyVis, odom_pose: OdomPose, dt: float) -> None:
-    odom_vx, odom_vy, odom_w = sim.get_odometry(dt)
+def handle_odom(
+    sim: Simulation,
+    pyvis: PyVis,
+    odom_pose: OdomPose,
+    vx: float,
+    vy: float,
+    v_theta: float,
+    dt: float,
+) -> None:
+    """
+    Odometry integartion
 
-    odom_pose.theta += odom_w * dt
-    odom_pose.x += (
-        odom_vx * np.cos(odom_pose.theta) + odom_vy * np.sin(odom_pose.theta)
-    ) * dt
-    odom_pose.y += (
-        odom_vx * np.sin(odom_pose.theta) + odom_vy * np.cos(odom_pose.theta)
-    ) * dt
+    :param sim: Simulation object
+    :param pyvis: PyVis object
+    :param odom_pose: OdomPose object
+    :param dt: Time interval
+    """
+
+    odom_pose.theta += v_theta * dt
+    odom_pose.x += (vx * np.cos(odom_pose.theta) + vy * np.sin(odom_pose.theta)) * dt
+    odom_pose.y += (vx * np.sin(odom_pose.theta) + vy * np.cos(odom_pose.theta)) * dt
 
     pyvis.add_odom_point(odom_pose.x, odom_pose.y, odom_pose.theta)
 
 
-def handle_slam(pyvis: PyVis, slam_x, slam_y, slam_theta) -> None:
-    pyvis.add_slam_point(slam_x, slam_y, slam_theta)
+def handle_slam(
+    pyvis: PyVis, graph_slam: GraphSlam, vx: float, vy: float, vtheta: float
+) -> None:
+    """
+    Slam integration
+
+    :param pyvis: PyVis object
+    :param graph_slam: GraphSlam object
+    :param vx: Linear velocity in x
+    :param vy: Linear velocity in y
+    :param vtheta: Angular velocity
+    """
+    x, y, theta = graph_slam.add_imu_measurments(
+        np.array([vx, vy, 0]), np.array([0, 0, vtheta]), 1
+    )
+    pyvis.add_slam_point(x, y, theta)
 
 
-def sim_loop(sim: Simulation, pyvis: PyVis, odom_pose: OdomPose) -> None:
-    moves = MOVES.copy()  # To insert manualy the moves set moves = []
+def sim_loop(
+    sim: Simulation, pyvis: PyVis, odom_pose: OdomPose, use_move_list=True
+) -> None:
+    """
+    Simulation loop
+
+    :param sim: Simulation object
+    :param pyvis: PyVis object
+    :param odom_pose: OdomPose object
+    :param use_move_list: If True, use the predefined move list
+    """
+    moves = MOVES.copy() if use_move_list else []
+    graph_slam = GraphSlam()
 
     while True:
-        input_val = get_input(moves)
+        gt_v = get_gt_v(moves)
 
-        if input_val is None:
+        if gt_v is None:
             return
 
-        vx, vy, w = input_val
-
+        vx, vy, w = gt_v
         handle_ground_truth(sim, pyvis, vx, vy, w, 1)
-        handle_odom(sim, pyvis, odom_pose, 1)
+        vx, vy, w = sim.get_imu_measurments(1)
+
+        handle_odom(sim, pyvis, odom_pose, vx, vy, w, 1)
+        handle_slam(pyvis, graph_slam, vx, vy, w)
 
 
 def main() -> None:
     sim, pyvis, odom_pose = start_simulation(0, 0, 0)
-    sim_loop(sim, pyvis, odom_pose)
+    sim_loop(sim, pyvis, odom_pose, use_move_list=True)
 
 
 if __name__ == "__main__":
-    gs = GraphSlam()
-    # main()
+    main()
