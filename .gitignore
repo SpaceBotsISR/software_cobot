@@ -17,3 +17,4 @@
 *.so
 *.pyc
 .vscode/
+.DS_Store
