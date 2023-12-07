@@ -13,7 +13,9 @@ UP = [[0, STEP, 0]]
 DOWN = [[0, -STEP, 0]]
 LEFT = [[-STEP, 0, 0]]
 RIGHT = [[STEP, 0, 0]]
-MOVES = RIGHT + UP + (5 * RIGHT + 2 * UP + 5 * LEFT + 2 * UP) * 2
+MOVES = (
+    RIGHT + UP + (5 * RIGHT + 2 * UP + 5 * LEFT + 2 * UP) * 2 + ROTATE_90_CCW + RIGHT
+)
 
 # Simulation params
 FOV_DISTANCE = 20
@@ -36,6 +38,8 @@ LANDMARKS = [
     (20, 7),
 ]
 
+prev_slam_yaw = 0.0
+
 
 def start_simulation(
     x: float, y: float, theta: float
@@ -54,8 +58,8 @@ def start_simulation(
         FOV_DISTANCE,
         FOV_ANGLE,
         LANDMARKS,
-        odom_range_sd=0.55,
-        odom_angle_sd=0.04,
+        odom_range_sd=0.6,
+        odom_angle_sd=0.05,
         camera_range_sd=0.08,
         camera_angle_sd=0.02,
     )
@@ -152,10 +156,17 @@ def handle_slam(
     :param vy: Linear velocity in y
     :param vtheta: Angular velocity
     """
+    global prev_slam_yaw
+    yaw = prev_slam_yaw
+
+    dx = vx * np.cos(yaw) + vy * np.sin(yaw)
+    dy = vx * np.sin(yaw) + vy * np.cos(yaw)
+
     x, y, theta = graph_slam.add_imu_measurments(
-        np.array([vx, vy, 0]), np.array([0, 0, vtheta]), 1
+        np.array([dx, dy, 0]), np.array([0, 0, vtheta]), 1
     )
     pyvis.add_slam_point(x, y, theta)
+    prev_slam_yaw = theta
 
 
 def sim_loop(
