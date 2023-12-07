@@ -22,10 +22,10 @@ class PyVis:
         self.slam_points = []
 
         plt.ion()  # Enable interactive mode
-        self.fig, self.ax = plt.subplots()
+        self.fig, self.ax = plt.subplots(figsize=(8, 8))
         plt.tight_layout()
-        self.ax.set_xlim(-2, 40)
-        self.ax.set_ylim(-2, 40)
+        self.ax.set_xlim(-2, 45)
+        self.ax.set_ylim(-2, 45)
         self.ax.scatter(
             *zip(*self.landmarks), marker="*", color="b", alpha=0.6, label="Landmarks"
         )
@@ -41,7 +41,7 @@ class PyVis:
         self, x: float, y: float, theta: float, color: str, alpha: float
     ) -> None:
         # Length of the direction line
-        line_length = 1
+        line_length = 0.6
 
         # Calculate the endpoint of the direction line
         end_x = x + line_length * np.cos(theta)
@@ -61,6 +61,7 @@ class PyVis:
             alpha=ODOM_ALPHA,
         )
         self.draw_direction_line(x, y, theta, "g", ODOM_ALPHA)
+
         self.ax.legend()
         self.fig.canvas.flush_events()  # Update the plot
 
@@ -70,13 +71,13 @@ class PyVis:
             x,
             y,
             marker=".",
-            color="r",
+            color="black",
             label="Ground Truth Points" if len(self.ground_truth_points) == 1 else "",
             alpha=GROUND_TRUTH_ALPHA,
         )
 
         # Draw the direction line for ground truth point
-        self.draw_direction_line(x, y, theta, "r", GROUND_TRUTH_ALPHA)
+        self.draw_direction_line(x, y, theta, "black", GROUND_TRUTH_ALPHA)
 
         # Calculate FoV line endpoints
         left_fov_x, left_fov_y = self.calculate_fov_endpoint(
