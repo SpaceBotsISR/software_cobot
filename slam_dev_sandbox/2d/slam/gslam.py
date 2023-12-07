@@ -38,7 +38,7 @@ class GraphSlam:
         return roll, pitch, yaw
 
     def add_imu_measurments(
-        self, position_increment: np.array, rotation_xyz: np.array, delta_t: float
+        self, position_increment: np.array, c. : np.array, delta_t: float
     ) -> tuple[float, float, float]:
         """
         Add IMU measurements to the graph and get updated pose
