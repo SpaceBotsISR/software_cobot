@@ -170,14 +170,15 @@ void Space_Cobot_Interface::reset_clients()
 void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
 {
     mavros_msgs::msg::ActuatorControl actuator_control_msg;
-    RCLCPP_WARN(get_logger(), "INSIDE PWM values callback ");
 
     this->control_last_message = actuator_control_msg.header.stamp = this->get_clock()->now();
     actuator_control_msg.group_mix = 0;
 
     for (int i = 0; i < NUM_MOTORS; i++)
     {
+        RCLCPP_WARN(get_logger(), " data %lf" , msg->data[i]);
         actuator_control_msg.controls[i] = msg->data[i];
+
     }
 
     this->actuator_controls_pub->publish(actuator_control_msg);
