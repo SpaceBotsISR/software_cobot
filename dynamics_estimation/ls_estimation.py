@@ -80,6 +80,8 @@ class Estimator:
             ]
         )
 
+        return R
+
     def read_file(self, file_name):
         with open(file_name) as fp:
             contents = fp.read()
@@ -105,16 +107,21 @@ class Estimator:
         residuals = []
 
         for i in range(len(self.timestamp)):
-            # TODO: check the R part of the model
-            model = (
-                1 / self.timestamp[i] * self.L @ self.L.T @ (self.w[i + 1] - self.w[i])
-            )
-            +self.get_S((self.w[i + 1] + self.w[i]) / 2) @ self.L @ self.L.T @ (
-                (self.w[i + 1] + self.w[i]) / 2
-            )
-            -self.get_S(self.c) @ self.R[i].T @ g - self.A1M(
-                (self.u[i + 1] + self.u[i]) / 2
-            )
+            w_diff = (self.w[i + 1] - self.w[i]) / self.timestamp[i]
+            w_avg = (self.w[i + 1] + self.w[i]) / 2
+            u_avg = (self.u[i + 1] + self.u[i]) / 2
+            R_svd = np.linalg.svd(self.R[i + 1])
+            R_avg = R_svd[0] @ np.diag([1, 1, np.linalg.det(R_svd[0]) @ np.linalg.det(R_svd[2])]) @ R_svd[2]
+
+            model = self.L @ self.L.T @ w_diff 
+            + self.get_S(w_avg) @ self.L @ self.L.T @ w_avg
+            - self.get_S(self.c) @ self.R_avg.T @ g 
+            - self.A1M @ u_avg
+
+            residuals.append(model)
+
+        return np.array(residuals)
+            
 
 
 def main():
@@ -124,7 +131,7 @@ def main():
     initial_params_list = [est.L, est.c, est.A1M]
     initial_params = np.concatenate([param.flatten() for param in initial_params_list])
 
-    result = sopt.least_squares(est.cost_function, initial_params, args = (est.w_dot, est.w, est.R, est.u))
+    result = sopt.least_squares(est.cost_function, initial_params)
 
     optimized_L = result.x[:9].reshape((3, 3))
     optimized_c = result.x[9:12].reshape((3, 1))
@@ -134,7 +141,7 @@ def main():
     print(optimized_L)
     print("\nOptimized c:")
     print(optimized_c)
-    print("\nOptimized Parameter 3:")
+    print("\nOptimized A1M:")
     print(optimized_A1M)
 
 
