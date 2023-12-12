@@ -5,14 +5,15 @@ from scipy.spatial.transform import Rotation as R
 
 
 class GraphSlam:
-    def __init__(self):
+    def __init__(self, pose_noise_model=0.1):
         self.isam = gtsam.ISAM2()
         self.graph = gtsam.NonlinearFactorGraph()
         self.initial_estimate = gtsam.Values()
 
         # TODO: tune noise model
-        n = 0.1
-        self.pose_noise = gtsam.noiseModel.Diagonal.Sigmas(np.array([n, n, 0, 0, 0, n]))
+        self.pose_noise = gtsam.noiseModel.Diagonal.Sigmas(
+            np.array([pose_noise_model, pose_noise_model, 0, 0, 0, pose_noise_model])
+        )
 
         self.current_pose = gtsam.Pose3()  # Initialize with default pose
         self.time_step = 0
@@ -38,7 +39,7 @@ class GraphSlam:
         return roll, pitch, yaw
 
     def add_imu_measurments(
-        self, position_increment: np.array, c. : np.array, delta_t: float
+        self, position_increment: np.array, rotation_xyz: np.array, delta_t: float
     ) -> tuple[float, float, float]:
         """
         Add IMU measurements to the graph and get updated pose

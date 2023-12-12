@@ -14,7 +14,7 @@ DOWN = [[0, -STEP, 0]]
 LEFT = [[-STEP, 0, 0]]
 RIGHT = [[STEP, 0, 0]]
 MOVES = (
-    RIGHT + UP + (5 * RIGHT + 2 * UP + 5 * LEFT + 2 * UP) * 2 + ROTATE_90_CCW + RIGHT
+    RIGHT + UP + (6 * RIGHT + 2 * UP + 6 * LEFT + 2 * UP) * 2 + ROTATE_90_CCW + RIGHT
 )
 
 # Simulation params
@@ -181,7 +181,7 @@ def sim_loop(
     :param use_move_list: If True, use the predefined move list
     """
     moves = MOVES.copy() if use_move_list else []
-    graph_slam = GraphSlam()
+    graph_slam = GraphSlam(pose_noise_model=0.5)
 
     while True:
         gt_v = get_gt_v(moves)
