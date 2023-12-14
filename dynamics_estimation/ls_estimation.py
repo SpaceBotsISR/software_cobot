@@ -31,6 +31,17 @@ with
 G = 9.81
 g = np.array([[0], [0], [-G]], dtype=float)
 
+# Initial guesses
+L = np.zeros((3, 3), dtype=float)
+c = np.zeros((3, 1), dtype=float)
+A1M = np.array([
+        [-6.776660281601378126e-17, -4.069248629204854639e-01, 2.905744659368497129e-01, -1.897464878848385925e-15, -3.334542096204833328e+00, -1.329837852169367229e+00],
+        [-3.524072687206405985e-01, 2.034624314602428152e-01, 2.905744659368497129e-01, 2.887798165301998399e+00, -1.667271048102417330e+00, 1.329837852169366563e+00],
+        [3.524072687206407650e-01, 2.034624314602425932e-01, 2.905744659368496019e-01, 2.887798165302000175e+00, 1.667271048102416220e+00, -1.329837852169366341e+00],
+        [-1.107312451872372199e-16, -4.069248629204853529e-01, 2.905744659368496574e-01, 4.429249807489488797e-16, 3.334542096204833328e+00, 1.329837852169366563e+00],
+        [-3.524072687206407095e-01, 2.034624314602426765e-01, 2.905744659368496019e-01, -2.887798165301998843e+00, 1.667271048102417108e+00, -1.329837852169367229e+00],
+        [3.524072687206407650e-01, 2.034624314602426765e-01, 2.905744659368496019e-01, -2.887798165301999287e+00, -1.667271048102416220e+00, 1.329837852169366785e+00]
+    ])
 
 class Estimator:
     def __init__(self, file_name="data.txt"):
@@ -39,10 +50,6 @@ class Estimator:
         self.w = []
         self.R = []
         self.u = []
-
-        self.L = np.zeros((3, 3), dtype=float)
-        self.c = np.zeros((3, 1), dtype=float)
-        self.A1M = np.zeros((6, 6), dtype=float)
 
         self.read_file(file_name)
 
@@ -61,7 +68,7 @@ class Estimator:
         R = Rz(alpha).Ry(betha).Rx(gamma) =  | sin(alpha)cos(betha)    sin(alpha)sin(betha)sin(gamma) + cos(alpha)cos(gamma)    sin(alpha)sin(betha)cos(gamma) - cos(alpha)sin(gamma) |
                                              |       -sin(betha)                            cos(betha)sin(gamma)                                     cos(betha)cos(gamma)             |
         """
-        alpha, betha, gamma = line.replace(" ", ",").split(",")
+        alpha, betha, gamma = [float(x) for x in line.replace(" ", ",").split(",")]
         cos = np.cos
         sin = np.sin
         R = np.array(
@@ -82,6 +89,12 @@ class Estimator:
 
         return R
 
+    def parse_line(self, line):
+        line = line.replace("\n", "").replace(" ", ",")
+        numbers = line.strip().split(",")
+
+        return np.array([[float(n) for n in numbers if n != '']])
+
     def read_file(self, file_name):
         with open(file_name) as fp:
             contents = fp.read()
@@ -95,40 +108,43 @@ class Estimator:
                 self.R.append(self.get_R(m[3]))
                 self.u.append(self.parse_line(m[4]).T)
 
-    def get_S(v):
+    def get_S(self, v):
         """
                 |   0    -v3     v2 |
         S(v) =  |  v3      0    -v1 |
                 | -v2     v1      0 |
         """
+        v = v.flatten()
         return np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
 
-    def cost_function(self):
+    def cost_function(self, params):
         residuals = []
 
-        for i in range(len(self.timestamp)):
+        L_flat, c, A1M_flat = np.split(params, [9, 12])
+        L = L_flat.reshape((3, 3))
+        A1M = A1M_flat.reshape((6, 6))
+
+
+        for i in range(len(self.timestamp) - 1):
             w_diff = (self.w[i + 1] - self.w[i]) / self.timestamp[i]
             w_avg = (self.w[i + 1] + self.w[i]) / 2
             u_avg = (self.u[i + 1] + self.u[i]) / 2
             R_svd = np.linalg.svd(self.R[i + 1])
-            R_avg = R_svd[0] @ np.diag([1, 1, np.linalg.det(R_svd[0]) @ np.linalg.det(R_svd[2])]) @ R_svd[2]
+            R_avg = R_svd[0] @ np.diag([1, 1, np.linalg.det(R_svd[0]) * np.linalg.det(R_svd[2])]) @ R_svd[2]
 
-            model = self.L @ self.L.T @ w_diff 
-            + self.get_S(w_avg) @ self.L @ self.L.T @ w_avg
-            - self.get_S(self.c) @ self.R_avg.T @ g 
-            - self.A1M @ u_avg
+            model = L @ L.T @ w_diff 
+            + self.get_S(w_avg) @ L @ L.T @ w_avg
+            - self.get_S(c) @ R_avg.T @ g 
+            - A1M @ u_avg
 
-            residuals.append(model)
+            residuals.append(model.flatten())
 
-        return np.array(residuals)
-            
-
-
+        return np.concatenate(residuals)
+    
 def main():
     est = Estimator()
-    est.print()
 
-    initial_params_list = [est.L, est.c, est.A1M]
+    initial_params_list = [L, c, A1M]
     initial_params = np.concatenate([param.flatten() for param in initial_params_list])
 
     result = sopt.least_squares(est.cost_function, initial_params)
