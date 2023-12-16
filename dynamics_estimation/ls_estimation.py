@@ -30,11 +30,14 @@ with
 
 G = 9.81
 g = np.array([[0], [0], [-G]], dtype=float)
+m = 5 # mass of Cobot
+m_batt = 0.5 # mass of the battery
+M = m + m_batt # total mass
 
 # Initial guesses
 L = np.zeros((3, 3), dtype=float)
 c = np.zeros((3, 1), dtype=float)
-A1M = np.array([
+A = np.array([
         [-6.776660281601378126e-17, -4.069248629204854639e-01, 2.905744659368497129e-01, -1.897464878848385925e-15, -3.334542096204833328e+00, -1.329837852169367229e+00],
         [-3.524072687206405985e-01, 2.034624314602428152e-01, 2.905744659368497129e-01, 2.887798165301998399e+00, -1.667271048102417330e+00, 1.329837852169366563e+00],
         [3.524072687206407650e-01, 2.034624314602425932e-01, 2.905744659368496019e-01, 2.887798165302000175e+00, 1.667271048102416220e+00, -1.329837852169366341e+00],
@@ -42,11 +45,13 @@ A1M = np.array([
         [-3.524072687206407095e-01, 2.034624314602426765e-01, 2.905744659368496019e-01, -2.887798165301998843e+00, 1.667271048102417108e+00, -1.329837852169367229e+00],
         [3.524072687206407650e-01, 2.034624314602426765e-01, 2.905744659368496019e-01, -2.887798165301999287e+00, -1.667271048102416220e+00, 1.329837852169366785e+00]
     ])
+A1 = A / M
+A1M = A1[3:, :]
+
 
 class Estimator:
     def __init__(self, file_name="data.txt"):
         self.timestamp = []
-        self.w_dot = []
         self.w = []
         self.R = []
         self.u = []
@@ -57,35 +62,27 @@ class Estimator:
         for i in range(len(self.timestamp)):
             print("\n - - - - - - - - - - - - - - - - - - - - - - ")
             print(f"t:\n {self.timestamp[i]}")
-            print(f"w_dot:\n{self.w_dot[i]}")
             print(f"w:\n{self.w[i]}")
             print(f"R:\n{self.R[i]}")
             print(f"u:\n{self.u[i]}")
 
     def get_R(self, line):
         """
-                                             | cos(alpha)cos(betha)    cos(alpha)sin(betha)sin(gamma) - sin(alpha)cos(gamma)    cos(alpha)sin(betha)cos(gamma) + sin(alpha)sin(gamma) |
-        R = Rz(alpha).Ry(betha).Rx(gamma) =  | sin(alpha)cos(betha)    sin(alpha)sin(betha)sin(gamma) + cos(alpha)cos(gamma)    sin(alpha)sin(betha)cos(gamma) - cos(alpha)sin(gamma) |
-                                             |       -sin(betha)                            cos(betha)sin(gamma)                                     cos(betha)cos(gamma)             |
+        Convert a quaternion to a 3x3 rotation matrix.
+    
+        Parameters:
+        - quaternion: The quaternion in the format (w, x, y, z).
+
+        Output:
+        - R: The 3x3 rotation matrix.
         """
-        alpha, betha, gamma = [float(x) for x in line.replace(" ", ",").split(",")]
-        cos = np.cos
-        sin = np.sin
-        R = np.array(
-            [
-                [
-                    cos(alpha) * cos(betha),
-                    cos(alpha) * sin(betha) * sin(gamma) - sin(alpha) * cos(gamma),
-                    cos(alpha) * sin(betha) * cos(gamma) + sin(alpha) * sin(gamma),
-                ],
-                [
-                    sin(alpha) * cos(betha),
-                    sin(alpha) * sin(betha) * sin(gamma) + cos(alpha) * cos(gamma),
-                    sin(alpha) * sin(betha) * cos(gamma) - cos(alpha) * sin(gamma),
-                ],
-                [-sin(betha), cos(betha) * sin(gamma), cos(betha) * cos(gamma)],
-            ]
-        )
+        w, x, y, z = [float(x) for x in line.replace(" ", ",").split(",")]
+
+        R = np.array([
+            [1 - 2*y**2 - 2*z**2, 2*x*y - 2*w*z, 2*x*z + 2*w*y],
+            [2*x*y + 2*w*z, 1 - 2*x**2 - 2*z**2, 2*y*z - 2*w*x],
+            [2*x*z - 2*w*y, 2*y*z + 2*w*x, 1 - 2*x**2 - 2*y**2]
+        ])
 
         return R
 
@@ -103,10 +100,9 @@ class Estimator:
             for m in measurements:
                 m = m.split("\n")
                 self.timestamp.append(float(m[0].strip()))
-                self.w_dot.append(self.parse_line(m[1]).T)
-                self.w.append(self.parse_line(m[2]).T)
-                self.R.append(self.get_R(m[3]))
-                self.u.append(self.parse_line(m[4]).T)
+                self.w.append(self.parse_line(m[1]).T)
+                self.R.append(self.get_R(m[2]))
+                self.u.append(self.parse_line(m[3]).T)
 
     def get_S(self, v):
         """
@@ -115,7 +111,9 @@ class Estimator:
                 | -v2     v1      0 |
         """
         v = v.flatten()
-        return np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+        return np.array([[0, -v[2], v[1]], 
+                         [v[2], 0, -v[0]], 
+                         [-v[1], v[0], 0]])
 
     def cost_function(self, params):
         residuals = []
@@ -151,7 +149,7 @@ def main():
 
     optimized_L = result.x[:9].reshape((3, 3))
     optimized_c = result.x[9:12].reshape((3, 1))
-    optimized_A1M = result.x[12:].reshape((6, 6))
+    optimized_A1M = result.x[12:].reshape((3, 6))
 
     print("Optimized L:")
     print(optimized_L)
