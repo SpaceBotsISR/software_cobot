@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.optimize as sopt
+from scipy.spatial.transform import Rotation
 
 """
 w(3x1) - angular velocity
@@ -28,29 +29,16 @@ with
     R_k,k+1 = USV (USV is the SVD decomposition of (R_k,k+1) and S = diag(1,1,det(U)det(V))
 """
 
-G = 9.81
+G = 9.81 # gravity acceleration
 g = np.array([[0], [0], [-G]], dtype=float)
-m = 5 # mass of Cobot
+m = 3 # mass of Cobot
 m_batt = 0.5 # mass of the battery
 M = m + m_batt # total mass
-
-# Initial guesses
-L = np.zeros((3, 3), dtype=float)
-c = np.zeros((3, 1), dtype=float)
-A = np.array([
-        [-6.776660281601378126e-17, -4.069248629204854639e-01, 2.905744659368497129e-01, -1.897464878848385925e-15, -3.334542096204833328e+00, -1.329837852169367229e+00],
-        [-3.524072687206405985e-01, 2.034624314602428152e-01, 2.905744659368497129e-01, 2.887798165301998399e+00, -1.667271048102417330e+00, 1.329837852169366563e+00],
-        [3.524072687206407650e-01, 2.034624314602425932e-01, 2.905744659368496019e-01, 2.887798165302000175e+00, 1.667271048102416220e+00, -1.329837852169366341e+00],
-        [-1.107312451872372199e-16, -4.069248629204853529e-01, 2.905744659368496574e-01, 4.429249807489488797e-16, 3.334542096204833328e+00, 1.329837852169366563e+00],
-        [-3.524072687206407095e-01, 2.034624314602426765e-01, 2.905744659368496019e-01, -2.887798165301998843e+00, 1.667271048102417108e+00, -1.329837852169367229e+00],
-        [3.524072687206407650e-01, 2.034624314602426765e-01, 2.905744659368496019e-01, -2.887798165301999287e+00, -1.667271048102416220e+00, 1.329837852169366785e+00]
-    ])
-A1 = A / M
-A1M = A1[3:, :]
-
+r = 0.25 # radius of Cobot
+h = 0.10 # height of Cobot
 
 class Estimator:
-    def __init__(self, file_name="data.txt"):
+    def __init__(self, file_name="input_data.txt"):
         self.timestamp = []
         self.w = []
         self.R = []
@@ -66,6 +54,40 @@ class Estimator:
             print(f"R:\n{self.R[i]}")
             print(f"u:\n{self.u[i]}")
 
+    def get_L(self, mass = M):
+        """
+        Get lower triangular matrix 3x3 from the moment of inertia.
+
+        Parameters:
+        - mass: The total mass of Cobot.
+
+        Output:
+        - L: Lower triangular matrix 3x3 as list of values.
+        """
+        Ixx = Iyy = (1/12) * mass * (3 * r**2 + h**2)
+        Izz = (1/2) * mass * r**2
+
+        # Inertia matrix
+        J_C = np.array([
+            [Ixx, 0, 0],
+            [0, Iyy, 0],
+            [0, 0, Izz]
+        ])
+
+        J1 = J_C / M
+
+        # Cholesky decomposition
+        L = np.linalg.cholesky(J1)
+
+        return np.array([L[0,0], L[1,0], L[1,1], L[2,0], L[2,1] , L[2,2]])
+
+
+    """
+    v 0 0
+    v v 0
+    v v v
+    """
+
     def get_R(self, line):
         """
         Convert a quaternion to a 3x3 rotation matrix.
@@ -78,11 +100,7 @@ class Estimator:
         """
         w, x, y, z = [float(x) for x in line.replace(" ", ",").split(",")]
 
-        R = np.array([
-            [1 - 2*y**2 - 2*z**2, 2*x*y - 2*w*z, 2*x*z + 2*w*y],
-            [2*x*y + 2*w*z, 1 - 2*x**2 - 2*z**2, 2*y*z - 2*w*x],
-            [2*x*z - 2*w*y, 2*y*z + 2*w*x, 1 - 2*x**2 - 2*y**2]
-        ])
+        R = Rotation.from_quat([w, x, y, z]).as_matrix()
 
         return R
 
@@ -117,10 +135,12 @@ class Estimator:
 
     def cost_function(self, params):
         residuals = []
+        L_flat, c, A1M_flat = np.split(params, [6, 9])
+        L = np.array([[0, 0, 0],
+                     [L_flat[0], L_flat[1], 0],
+                     [L_flat[3], L_flat[4], L_flat[5]]])
 
-        L_flat, c, A1M_flat = np.split(params, [9, 12])
-        L = L_flat.reshape((3, 3))
-        A1M = A1M_flat.reshape((6, 6))
+        A1M = A1M_flat.reshape((3, 6))
 
 
         for i in range(len(self.timestamp) - 1):
@@ -130,10 +150,11 @@ class Estimator:
             R_svd = np.linalg.svd(self.R[i + 1])
             R_avg = R_svd[0] @ np.diag([1, 1, np.linalg.det(R_svd[0]) * np.linalg.det(R_svd[2])]) @ R_svd[2]
 
-            model = L @ L.T @ w_diff 
-            + self.get_S(w_avg) @ L @ L.T @ w_avg
-            - self.get_S(c) @ R_avg.T @ g 
-            - A1M @ u_avg
+            model = (L @ L.T @ w_diff +
+                self.get_S(w_avg) @ L @ L.T @ w_avg -
+                self.get_S(c) @ R_avg.T @ g -
+                A1M @ u_avg)
+
 
             residuals.append(model.flatten())
 
@@ -142,10 +163,24 @@ class Estimator:
 def main():
     est = Estimator()
 
+    # Initial guesses
+    L = est.get_L()
+    c = np.zeros((3, 1), dtype=float)
+    A = np.array([
+        [-6.776660281601378126e-17, -4.069248629204854639e-01, 2.905744659368497129e-01, -1.897464878848385925e-15, -3.334542096204833328e+00, -1.329837852169367229e+00],
+        [-3.524072687206405985e-01, 2.034624314602428152e-01, 2.905744659368497129e-01, 2.887798165301998399e+00, -1.667271048102417330e+00, 1.329837852169366563e+00],
+        [3.524072687206407650e-01, 2.034624314602425932e-01, 2.905744659368496019e-01, 2.887798165302000175e+00, 1.667271048102416220e+00, -1.329837852169366341e+00],
+        [-1.107312451872372199e-16, -4.069248629204853529e-01, 2.905744659368496574e-01, 4.429249807489488797e-16, 3.334542096204833328e+00, 1.329837852169366563e+00],
+        [-3.524072687206407095e-01, 2.034624314602426765e-01, 2.905744659368496019e-01, -2.887798165301998843e+00, 1.667271048102417108e+00, -1.329837852169367229e+00],
+        [3.524072687206407650e-01, 2.034624314602426765e-01, 2.905744659368496019e-01, -2.887798165301999287e+00, -1.667271048102416220e+00, 1.329837852169366785e+00]
+    ])
+    A1 = A / M
+    A1M = A1[3:, :]
+
     initial_params_list = [L, c, A1M]
     initial_params = np.concatenate([param.flatten() for param in initial_params_list])
 
-    result = sopt.least_squares(est.cost_function, initial_params)
+    result = sopt.least_squares(est.cost_function, initial_params, verbose = 2)
 
     optimized_L = result.x[:9].reshape((3, 3))
     optimized_c = result.x[9:12].reshape((3, 1))
