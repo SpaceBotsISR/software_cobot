@@ -11,19 +11,18 @@ import matplotlib.pyplot as plt
 
 def S(v):
     """Skew-symmetric matrix"""
-    return np.array([[0,    -v[2], v[1]],
-                     [v[2],  0,   -v[0]],
-                     [-v[1], v[0], 0]])
+    return np.array([[0, -v[2], v[1]], [v[2], 0, -v[0]], [-v[1], v[0], 0]])
+
 
 class Simulator:
     ## Synthetic parameters of Space CoBot
-    m = 5.8 # Kg
+    m = 5.8  # Kg
     # simplification: consider a cylinder
-    r = 0.25 # m
-    h = 0.15 # m
-    J = np.diag([m*(3*r*r + h*h)/12,
-                 m*(3*r*r + h*h)/12,
-                 m*r*r/2])
+    r = 0.25  # m
+    h = 0.15  # m
+    J = np.diag(
+        [m * (3 * r * r + h * h) / 12, m * (3 * r * r + h * h) / 12, m * r * r / 2]
+    )
     Jinv = la.inv(J)
     c = np.array([0.01, 0.02, 0.05])  # center of mass
     g = np.array([0, 0, -9.8])  # gravity vector
@@ -42,33 +41,36 @@ class Simulator:
     def dyn(self, state, u):
         """Continuous time dynamics with explicit rotation matrix"""
         (x, v, R, w) = state
-        F = self.A[0:3,:]@u
-        M = self.A[3:6,:]@u
+        F = self.A[0:3, :] @ u
+        M = self.A[3:6, :] @ u
         x_dot = v
-        v_dot = R@F
-        R_dot = R@S(w)
-        w_dot = self.Jinv@(M + S(self.c)@R.T@self.g - S(w)@self.J@w - self.mu*w)
+        v_dot = R @ F
+        R_dot = R @ S(w)
+        w_dot = self.Jinv @ (
+            M + S(self.c) @ R.T @ self.g - S(w) @ self.J @ w - self.mu * w
+        )
         return (x_dot, v_dot, R_dot, w_dot)
 
     def ode(self, s0, u, delta_t):
         def flat(s):
             (x, v, R, w) = s
             return np.hstack([x, v, R.flatten(), w])
+
         def unflat(y):
             x = y[0:3]
             v = y[3:6]
-            R = y[6:15].reshape(3,3)
+            R = y[6:15].reshape(3, 3)
             w = y[15:18]
             return (x, v, R, w)
+
         def f(t, y):
             s = unflat(y)
             s_dot = self.dyn(s, u)
             return flat(s_dot)
-        y0 = flat(s0)
-        ret = intgr.solve_ivp(f, (0,delta_t), y0)
-        return unflat(ret.y[:,-1])
-        
 
+        y0 = flat(s0)
+        ret = intgr.solve_ivp(f, (0, delta_t), y0)
+        return unflat(ret.y[:, -1])
 
 
 def test1():
@@ -80,13 +82,14 @@ def test1():
     final = sim.ode(initial, u, 1.0)
     print(final)
 
+
 def test2(steps=200):
     """Trajectory simulated with zero actuation"""
     sim = Simulator()
     initial = (np.zeros(3), np.zeros(3), np.eye(3), np.zeros(3))
-    #u = np.zeros(6)
-    #u[0] = 0.01
-    u = la.inv(sim.A)@np.array([0,0,0, 0,0,0])
+    # u = np.zeros(6)
+    # u[0] = 0.01
+    u = la.inv(sim.A) @ np.array([0, 0, 0, 0, 0, 0])
     traj = [initial]
     s = initial
     for i in range(steps):
@@ -98,24 +101,24 @@ def test2(steps=200):
     es = trf.Rotation.from_matrix(Rs).as_euler("ZYX")
     ws = np.vstack([s[3] for s in traj])
     plt.subplot(411)
-    plt.plot(xs[:,0], label="x")
-    plt.plot(xs[:,1], label="y")
-    plt.plot(xs[:,2], label="z")
+    plt.plot(xs[:, 0], label="x")
+    plt.plot(xs[:, 1], label="y")
+    plt.plot(xs[:, 2], label="z")
     plt.legend()
     plt.subplot(412)
-    plt.plot(vs[:,0], label="vx")
-    plt.plot(vs[:,1], label="vy")
-    plt.plot(vs[:,2], label="vz")
+    plt.plot(vs[:, 0], label="vx")
+    plt.plot(vs[:, 1], label="vy")
+    plt.plot(vs[:, 2], label="vz")
     plt.legend()
     plt.subplot(413)
-    plt.plot(es[:,0], label="Yaw")
-    plt.plot(es[:,1], label="Pitch")
-    plt.plot(es[:,2], label="Roll")
+    plt.plot(es[:, 0], label="Yaw")
+    plt.plot(es[:, 1], label="Pitch")
+    plt.plot(es[:, 2], label="Roll")
     plt.legend()
     plt.subplot(414)
-    plt.plot(ws[:,0], label="wx")
-    plt.plot(ws[:,1], label="wy")
-    plt.plot(ws[:,2], label="wz")
+    plt.plot(ws[:, 0], label="wx")
+    plt.plot(ws[:, 1], label="wy")
+    plt.plot(ws[:, 2], label="wz")
     plt.legend()
     plt.show()
 
@@ -123,65 +126,109 @@ def test2(steps=200):
 def test3():
     """Trajectory simulated with random step-wise actuation"""
     sim = Simulator()
+
     initial = (np.zeros(3), np.zeros(3), np.eye(3), np.zeros(3))
-    steps = np.hstack([np.zeros((10,3)), 0.1*np.random.randn(10,3)])
-    M = np.vstack([np.tile(steps[i,:], (20,1)) for i in range(len(steps))]).T
-    u = la.inv(sim.A)@M
+    steps = np.hstack([np.zeros((10, 3)), 0.1 * np.random.randn(10, 3)])
+
+    M = np.vstack([np.tile(steps[i, :], (20, 1)) for i in range(len(steps))]).T
+    u = la.inv(sim.A) @ M
     traj = [initial]
     s = initial
+
     for i in range(u.shape[1]):
-        s = sim.ode(s, u[:,i], 0.1)
+        s = sim.ode(s, u[:, i], 0.1)
         traj.append(s)
+
     xs = np.vstack([s[0] for s in traj])
     vs = np.vstack([s[1] for s in traj])
     Rs = np.array([s[2] for s in traj])
+
     es = trf.Rotation.from_matrix(Rs).as_euler("ZYX")
     ws = np.vstack([s[3] for s in traj])
+
     plt.subplot(511)
-    plt.plot(xs[:,0], label="x")
-    plt.plot(xs[:,1], label="y")
-    plt.plot(xs[:,2], label="z")
+    plt.plot(xs[:, 0], label="x")
+    plt.plot(xs[:, 1], label="y")
+    plt.plot(xs[:, 2], label="z")
     plt.legend()
+
     plt.subplot(512)
-    plt.plot(vs[:,0], label="vx")
-    plt.plot(vs[:,1], label="vy")
-    plt.plot(vs[:,2], label="vz")
+    plt.plot(vs[:, 0], label="vx")
+    plt.plot(vs[:, 1], label="vy")
+    plt.plot(vs[:, 2], label="vz")
     plt.legend()
+
     plt.subplot(513)
-    plt.plot(es[:,0], label="Yaw")
-    plt.plot(es[:,1], label="Pitch")
-    plt.plot(es[:,2], label="Roll")
+    plt.plot(es[:, 0], label="Yaw")
+    plt.plot(es[:, 1], label="Pitch")
+    plt.plot(es[:, 2], label="Roll")
     plt.legend()
+
     plt.subplot(514)
-    plt.plot(ws[:,0], label="wx")
-    plt.plot(ws[:,1], label="wy")
-    plt.plot(ws[:,2], label="wz")
+    plt.plot(ws[:, 0], label="wx")
+    plt.plot(ws[:, 1], label="wy")
+    plt.plot(ws[:, 2], label="wz")
     plt.legend()
+
     plt.subplot(515)
-    plt.plot(u[0,:], label="u1")
-    plt.plot(u[1,:], label="u2")
-    plt.plot(u[2,:], label="u3")
-    plt.plot(u[3,:], label="u4")
-    plt.plot(u[4,:], label="u5")
-    plt.plot(u[5,:], label="u6")
+    plt.plot(u[0, :], label="u1")
+    plt.plot(u[1, :], label="u2")
+    plt.plot(u[2, :], label="u3")
+    plt.plot(u[3, :], label="u4")
+    plt.plot(u[4, :], label="u5")
+    plt.plot(u[5, :], label="u6")
     plt.show()
 
 
+def test4():
+    """Symultate Dynamics and write to file for the estimator"""
+    sim = Simulator()
+
+    A1M = sim.A[3:, :] / sim.m
+    print("A1M:\n", A1M)
+
+    np.save("sim_A1M.npy", A1M)
+
+    initial = (np.zeros(3), np.zeros(3), np.eye(3), np.zeros(3))
+    steps = np.hstack([np.zeros((10, 3)), 0.1 * np.random.randn(10, 3)])
+
+    M = np.vstack([np.tile(steps[i, :], (20, 1)) for i in range(len(steps))]).T
+    u = la.inv(sim.A) @ M
+    traj = [initial]
+    s = initial
+
+    for i in range(u.shape[1]):
+        s = sim.ode(s, u[:, i], 0.1)
+        traj.append(s)
+
+    xs = np.vstack([s[0] for s in traj])
+    vs = np.vstack([s[1] for s in traj])
+    Rs = np.array([s[2] for s in traj])
+
+    es = trf.Rotation.from_matrix(Rs).as_euler("ZYX")
+    ws = np.vstack([s[3] for s in traj])
+
+    timestamps = [(0.1 * i) + 0.1 for i in range(u.shape[1])]
+    write_to_file(timestamps, ws, Rs, u)
 
 
+def write_to_file(timestamp, w, R, u):
+    u = u.T
+    quaternion = trf.Rotation.from_matrix(R).as_quat()
+
+    with open("sim_data.txt", "w") as fp:
+        for i in range(len(timestamp)):
+            fp.write(f"{timestamp[i]}\n")
+            fp.write(f"{w[i][0]} {w[i][1]} {w[i][2]}\n")
+            fp.write(
+                f"{quaternion[i][0]} {quaternion[i][1]} {quaternion[i][2]} {quaternion[i][3]}\n"
+            )
+            fp.write(f"{u[i][0]} {u[i][1]} {u[i][2]} {u[i][3]} {u[i][4]} {u[i][5]}\n\n")
 
 
-
-
-
-
-
-
-
-    
 def main(argv):
     g = globals()
-    if len(argv)>1:
+    if len(argv) > 1:
         f = g[argv[1]]
         f()
     else:
@@ -191,7 +238,7 @@ def main(argv):
                 print(f"  {fn}")
 
 
-if __name__=='__main__':
+if __name__ == "__main__":
     main(sys.argv)
 
 

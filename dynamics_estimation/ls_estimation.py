@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.optimize as sopt
 from scipy.spatial.transform import Rotation
+import sys
 
 """
 w(3x1) - angular velocity
@@ -221,6 +222,10 @@ class Estimator:
 
             for m in measurements:
                 m = m.split("\n")
+
+                if len(m) == 1 and m[0] == "":
+                    return
+
                 self.timestamp.append(float(m[0].strip()))
                 self.w.append(self.parse_line(m[1]).T)
                 self.R.append(self.get_R(m[2]))
@@ -301,11 +306,17 @@ class Estimator:
         print("\nOptimized c:\n", optimized_c)
         print("\nOptimized A1M:\n", optimized_A1M)
 
+        np.save("est_A1M.npy", optimized_A1M)
 
-def main():
-    est = Estimator()
+
+def main(argv):
+    if len(argv) != 2:
+        print(f"Usage: python3 {argv[0]} <input_file>")
+        return
+
+    est = Estimator(file_name=argv[1])
     est.solve()
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv)
