@@ -202,7 +202,7 @@ class Estimator:
             ]
         )
 
-        print("Initial L:\n", L)
+        print("Initial J1:\n", L @ L.T)
         print("\nInitial c:\n", c)
         print("\nInitial A1M:\n", self.A1M)
         print("- - - - - - - - - - - - - - - - - - - - - -\n")
@@ -302,11 +302,13 @@ class Estimator:
         optimized_A1M = result.x[9:].reshape((3, 6))
 
         print("\n- - - - - - - - - - - - - - - - - - - - - -")
-        print("Optimized L:\n", optimized_L)
+        print("Optimized J1:\n", optimized_L @ optimized_L.T)  # J = L @ L^T
         print("\nOptimized c:\n", optimized_c)
         print("\nOptimized A1M:\n", optimized_A1M)
 
-        np.save("est_A1M.npy", optimized_A1M)
+        np.save("mats/est_J1.npy", optimized_L @ optimized_L.T)
+        np.save("mats/est_A1M.npy", optimized_A1M)
+        np.save("mats/est_c.npy", optimized_c)
 
 
 def main(argv):
