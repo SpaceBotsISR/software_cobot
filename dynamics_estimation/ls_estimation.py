@@ -3,32 +3,6 @@ import scipy.optimize as sopt
 from scipy.spatial.transform import Rotation
 import sys
 
-"""
-w(3x1) - angular velocity
-
-R(3x3) - Atitute expressed as a rotation matrix
-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-u(1x6) - actuation vector
-
-samples = {(wk_dot, wk, Rk, uk)}
-
-parameters = {(L, c, A1m)}
-
-
-    minimize      sum(||f(x)||^2)  
-s.t. L, c, A1M
-
-f(x) = 1/dt * L @ L.T(w_k+1-w_k) + S(w_k,k+1) @ L @ L.T @ w_k,k+1) - S(c) R_k,k+1 * g - A_1M_(u_k,k+1) ||^2 
-
-with
-
-    w_k,k+1 = (w_k+1 + w_k)/2
-
-    u_k,k+1 = (u_k+1 + u_k)/2
-
-    R_k,k+1 = USV (USV is the SVD decomposition of (R_k,k+1) and S = diag(1,1,det(U)det(V))
-"""
 
 # Cobot parameters
 g = np.array([[0], [0], [-9.81]], dtype=float)  # gravity acceleration
@@ -41,6 +15,8 @@ h = 0.10  # height of Cobot
 
 class Estimator:
     def __init__(self, file_name="input_data.txt"):
+        self.iter = 0
+        self.cost = 0xFFFFFFFF
         self.timestamp = []
         self.w = []
         self.R = []
@@ -86,10 +62,10 @@ class Estimator:
         Convert a quaternion to a 3x3 rotation matrix.
 
         Parameters:
-        - quaternion: The quaternion in the format (w, x, y, z).
+            quaternion: The quaternion in the format (w, x, y, z).
 
         Output:
-        - R: The 3x3 rotation matrix.
+            3x3 rotation matrix.
         """
         w, x, y, z = [float(x) for x in line.replace(" ", ",").split(",")]
 
@@ -102,10 +78,10 @@ class Estimator:
         Convert a line of numbers to a numpy array.
 
         Parameters:
-        - line: The line of numbers.
+            line: The line of numbers.
 
         Output:
-        - array: The array of numbers.
+            An array of numbers in the line.
         """
         line = line.replace("\n", "").replace(" ", ",")
         numbers = line.strip().split(",")
@@ -185,7 +161,7 @@ class Estimator:
         Get the initial guesses for the parameters.
 
         Output:
-        - initial_params: The initial guesses for the parameters.
+            initial_params: The initial guesses for the parameters.
         """
         c = np.zeros((3, 1), dtype=float)
         initial_params_list = [self.L, c, self.A1M]
@@ -205,7 +181,7 @@ class Estimator:
         print("Initial J1:\n", L @ L.T)
         print("\nInitial c:\n", c)
         print("\nInitial A1M:\n", self.A1M)
-        print("- - - - - - - - - - - - - - - - - - - - - -\n")
+        print("- - - - - - - - - - - - - - - - - - - - - -")
 
         return initial_params
 
@@ -214,7 +190,7 @@ class Estimator:
         Read the input file and store the data in the class variables.
 
         Parameters:
-        - file_name: The name of the input file.
+            file_name: The name of the input file.
         """
         with open(file_name) as fp:
             contents = fp.read()
@@ -254,12 +230,11 @@ class Estimator:
         Cost function to minimize.
 
         Parameters:
-        - params: The parameters to optimize.
+            params: The parameters to optimize.
 
         Output:
-        - residuals: The residuals of the cost function.
+            Cost
         """
-        residuals = []
         L_flat, c, A1M_flat = np.split(params, [6, 9])
         L = np.array(
             [
@@ -271,23 +246,57 @@ class Estimator:
 
         A1M = A1M_flat.reshape((3, 6))
 
+        cost = 0
         for i in range(len(self.timestamp) - 1):
-            model = (
-                L @ L.T @ self.w_diff[i]
-                + self.get_S(self.w_avg[i]) @ L @ L.T @ self.w_avg[i]
-                - self.get_S(c) @ self.R_avg[i].T @ g
-                - A1M @ self.u_avg[i]
+            cost += (
+                np.linalg.norm(
+                    L @ L.T @ self.w_diff[i]
+                    + self.get_S(self.w_avg[i]) @ L @ L.T @ self.w_avg[i]
+                    - self.get_S(c) @ self.R_avg[i].T @ g
+                    - A1M @ self.u_avg[i]
+                )
+                ** 2
             )
 
-            residuals.append(model.flatten())
+        self.cost = cost
+        return cost
 
-        return np.concatenate(residuals)
+    def constraints(self, params):
+        """
+        Constraints function.
+
+        Parameters:
+            params: The parameters to optimize.
+
+        Output:
+            ||A1M||^2 = 1
+
+        """
+        _, _, A1M_flat = np.split(params, [6, 9])
+        A1M = A1M_flat.reshape((3, 6))
+
+        return np.linalg.norm(A1M) ** 2 - 1
+
+    def solver_calback(self, _):
+        """
+        Callback function for the solver.
+
+        Parameters:
+            xk: The current solution.
+        """
+        self.iter += 1
+        print(f"\t[Iteration {self.iter}]: Cost = {self.cost:.6e}")
 
     def solve(self):
         """Solve the optimization problem."""
 
-        result = sopt.least_squares(
-            self.cost_function, self.get_initial_gesses(), verbose=2
+        result = sopt.minimize(
+            self.cost_function,
+            self.get_initial_gesses(),
+            method="SLSQP",
+            constraints={"type": "eq", "fun": self.constraints},
+            callback=self.solver_calback,
+            options={"disp": True},
         )
 
         optimized_L = result.x[:6]
@@ -309,6 +318,7 @@ class Estimator:
         np.save("mats/est_J1.npy", optimized_L @ optimized_L.T)
         np.save("mats/est_A1M.npy", optimized_A1M)
         np.save("mats/est_c.npy", optimized_c)
+        print("Data saved to mats/est_*.npy")
 
 
 def main(argv):

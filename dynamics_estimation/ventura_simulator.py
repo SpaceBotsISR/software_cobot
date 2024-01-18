@@ -347,6 +347,8 @@ def write_to_file(timestamp, w, R, u):
             )
             fp.write(f"{u[i][0]} {u[i][1]} {u[i][2]} {u[i][3]} {u[i][4]} {u[i][5]}\n\n")
 
+    print('\nData written to "data/sim.txt"')
+
 
 def main(argv):
     g = globals()
