@@ -234,7 +234,7 @@ def generate_data():
     np.save("mats/sim_A1M.npy", A1M)
 
     initial = (np.zeros(3), np.zeros(3), np.eye(3), np.zeros(3))
-    steps = np.hstack([np.zeros((2, 3)), 0.1 * np.random.randn(2, 3)])
+    steps = np.hstack([np.zeros((20, 3)), 0.1 * np.random.randn(20, 3)])
 
     M = np.vstack([np.tile(steps[i, :], (20, 1)) for i in range(len(steps))]).T
     u = la.inv(sim.A) @ M
@@ -260,7 +260,7 @@ def compare_estimates():
     """Trajectory simulated with random step-wise actuation"""
     sim = Simulator()
     initial = (np.zeros(3), np.zeros(3), np.eye(3), np.zeros(3))
-    steps = np.hstack([np.zeros((2, 3)), 0.1 * np.random.randn(2, 3)])
+    steps = np.hstack([np.zeros((20, 3)), 0.1 * np.random.randn(20, 3)])
     M = np.vstack([np.tile(steps[i, :], (20, 1)) for i in range(len(steps))]).T
     u = la.inv(sim.A) @ M
     traj = [initial]
@@ -298,34 +298,34 @@ def compare_estimates():
     print("MSE wz = ", np.mean((ws[:, 2] - ws_est[:, 2]) ** 2))
 
     plt.subplot(511)
-    plt.plot(es[:, 0], label="Yaw")
-    plt.plot(es[:, 1], label="Pitch")
-    plt.plot(es[:, 2], label="Roll")
+    plt.plot(es[:50, 0], label="Yaw")
+    plt.plot(es[:50, 1], label="Pitch")
+    plt.plot(es[:50, 2], label="Roll")
     plt.legend()
     plt.subplot(513)
-    plt.plot(ws[:, 0], label="wx")
-    plt.plot(ws[:, 1], label="wy")
-    plt.plot(ws[:, 2], label="wz")
+    plt.plot(ws[:50, 0], label="wx")
+    plt.plot(ws[:50, 1], label="wy")
+    plt.plot(ws[:50, 2], label="wz")
     plt.legend()
     plt.subplot(512)
-    plt.plot(es_est[:, 0], label="Yaw_est")
-    plt.plot(es_est[:, 1], label="Pitch_est")
-    plt.plot(es_est[:, 2], label="Roll_est")
+    plt.plot(es_est[:50, 0], label="Yaw_est")
+    plt.plot(es_est[:50, 1], label="Pitch_est")
+    plt.plot(es_est[:50, 2], label="Roll_est")
     plt.legend()
     plt.subplot(514)
 
-    plt.plot(ws_est[:, 0], label="wx_est")
-    plt.plot(ws_est[:, 1], label="wy_est")
-    plt.plot(ws_est[:, 2], label="wz_est")
+    plt.plot(ws_est[:50, 0], label="wx_est")
+    plt.plot(ws_est[:50, 1], label="wy_est")
+    plt.plot(ws_est[:50, 2], label="wz_est")
 
     plt.legend()
     plt.subplot(515)
-    plt.plot(u[0, :], label="u1")
-    plt.plot(u[1, :], label="u2")
-    plt.plot(u[2, :], label="u3")
-    plt.plot(u[3, :], label="u4")
-    plt.plot(u[4, :], label="u5")
-    plt.plot(u[5, :], label="u6")
+    plt.plot(u[0, :50], label="u1")
+    plt.plot(u[1, :50], label="u2")
+    plt.plot(u[2, :50], label="u3")
+    plt.plot(u[3, :50], label="u4")
+    plt.plot(u[4, :50], label="u5")
+    plt.plot(u[5, :50], label="u6")
     plt.figure()
     plt.plot(np.linalg.det(Rs) - 1, label="determinant error")
     NEs = Rs @ np.transpose(Rs, (0, 2, 1)) - np.eye(3)[None, :, :]

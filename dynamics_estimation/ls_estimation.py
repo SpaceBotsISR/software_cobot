@@ -318,7 +318,7 @@ class Estimator:
         np.save("mats/est_J1.npy", optimized_L @ optimized_L.T)
         np.save("mats/est_A1M.npy", optimized_A1M)
         np.save("mats/est_c.npy", optimized_c)
-        print("Data saved to mats/est_*.npy")
+        print("\nData saved to mats/est_*.npy")
 
 
 def main(argv):
