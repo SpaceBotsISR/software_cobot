@@ -211,7 +211,7 @@ class Estimator:
         """Pecumpute the data to be used in the cost function."""
 
         self.w_diff = [
-            ((self.w[i + 1] - self.w[i]) / self.timestamp[i])
+            ((self.w[i + 1] - self.w[i]) / (self.timestamp[i + 1] - self.timestamp[i]))
             for i in range(len(self.timestamp) - 1)
         ]
         self.w_avg = [(self.w[i + 1] + self.w[i]) / 2 for i in range(len(self.w) - 1)]
@@ -296,7 +296,7 @@ class Estimator:
             method="SLSQP",
             constraints={"type": "eq", "fun": self.constraints},
             callback=self.solver_calback,
-            options={"disp": True},
+            options={"ftol": 1e-6, "disp": True},
         )
 
         optimized_L = result.x[:6]

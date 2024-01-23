@@ -41,14 +41,19 @@ class Simulator:
     M = np.block([[m * np.eye(3), -m * S(c)], [m * S(c), J]])
     Minv = la.inv(M)
 
+    L = np.linalg.cholesky(J / m)
+
+    # Load params from file
     try:
+        n = np.linalg.norm(A / m)
+
         A_est = np.load("mats/est_A1M.npy")
         A_est = np.vstack([np.zeros((3, 6)), A_est])
-        A_est *= m
+        A_est *= m * n
 
-        c_est = np.load("mats/est_c.npy")
+        c_est = np.load("mats/est_c.npy") * n
         J_est = np.load("mats/est_J.npy")
-        J_est *= m
+        J_est *= m * n
     except FileNotFoundError:
         print("No estimator data found. Using simulator data instead.")
         A_est = A
@@ -78,10 +83,12 @@ class Simulator:
         M = self.A[3:6, :] @ u
         C = np.hstack([self.m * S(w) @ S(w) @ self.c, S(w) @ self.J @ w])
         q_ddot = self.Minv @ (np.hstack([R @ F, M]) - C)
+
         x_dot = v
         v_dot = q_ddot[0:3]
         R_dot = R @ S(w)
         w_dot = q_ddot[3:6]
+
         return (x_dot, v_dot, R_dot, w_dot)
 
     def dyn_static(self, state, u):
@@ -144,6 +151,7 @@ def test2(steps=200):
     for i in range(steps):
         s = sim.ode(s, u, 0.1)
         traj.append(s)
+
     xs = np.vstack([s[0] for s in traj])
     vs = np.vstack([s[1] for s in traj])
     Rs = np.array([s[2] for s in traj])
