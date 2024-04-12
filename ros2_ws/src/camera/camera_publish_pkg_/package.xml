@@ -1,0 +1,21 @@
+<package format="3">
+  <name>camera_publish_pkg_</name>
+  <version>0.0.0</version>
+  <description>Camera publisher node</description>
+  <maintainer email="andre.r.teixeira@tecnico.ulisboa.pt">AndreRTeixeira</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <build_depend>rclcpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>opencv</build_depend>
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>opencv</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
