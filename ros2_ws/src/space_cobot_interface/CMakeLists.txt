@@ -12,8 +12,6 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(mavros_msgs REQUIRED)
-find_package(rclcpp_lifecycle REQUIRED)
-find_package(lifecycle_msgs REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -45,21 +43,10 @@ include_directories(include /opt/ros/humble/include/builtin_interfaces)
 include_directories(include /usr/include/opencv4)
 
 add_executable(spaceCobotInterface
-  src/interface_main.cpp
   src/space_cobot_interface.cpp
-)
-
-add_executable(interface_master
-  src/interface_controller_main.cpp
-)
-
-ament_target_dependencies( interface_master
-  rclcpp
-  mavros_msgs
-  std_msgs
-  lifecycle_msgs
-  rclcpp_lifecycle
-
+  src/OpenLoop.cpp
+  src/AMatrix.cpp
+  src/Actuation.cpp
 )
 
 target_include_directories(spaceCobotInterface PUBLIC
@@ -67,7 +54,8 @@ target_include_directories(spaceCobotInterface PUBLIC
   $<INSTALL_INTERFACE:include>
 )
 
-ament_target_dependencies( spaceCobotInterface
+ament_target_dependencies(
+  spaceCobotInterface
   rclcpp
   geometry_msgs
   sensor_msgs
@@ -75,8 +63,6 @@ ament_target_dependencies( spaceCobotInterface
   std_msgs
   tf2
   tf2_ros
-  lifecycle_msgs
-  rclcpp_lifecycle
 )
 
 rosidl_target_interfaces (spaceCobotInterface ${PROJECT_NAME} "rosidl_typesupport_cpp")
@@ -91,9 +77,6 @@ install(TARGETS spaceCobotInterface
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(TARGETS interface_master
-  DESTINATION lib/${PROJECT_NAME})
-
 install(
   DIRECTORY include/
   DESTINATION share/${PROJECT_NAME}
@@ -103,13 +86,6 @@ install(
   DIRECTORY include/
   DESTINATION include
 )
-
-install(
-  DIRECTORY launch
-  DESTINATION share/${PROJECT_NAME}
-)
-
-
 
 
 if(BUILD_TESTING)
