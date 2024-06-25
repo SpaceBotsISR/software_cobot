@@ -17,6 +17,7 @@
 *.so
 *.pyc
 .vscode/
+<<<<<<< HEAD
 
 **/rosbags
 *.mcap
@@ -24,3 +25,6 @@
 *.png
 
 **/camera_calibration
+=======
+.DS_Store
+>>>>>>> main

@@ -1,0 +1,49 @@
+Initialize:
+- Create an empty graph for SLAM.
+- Initialize variables for robot pose, velocity, and IMU biases.
+- Set parameters for the SLAM algorithm (e.g., number of smart factors, sliding window duration, max optimization iterations).
+
+Main Loop:
+While the robot is operational:
+    - Acquire sensor data:
+        - Capture images from the monocular camera at 15 Hz.
+        - Read IMU data at 62.5 Hz.
+
+    - Process IMU data:
+        - Apply low-pass and notch filters to remove noise.
+
+    - Perform feature extraction and optical flow tracking on images:
+        - Use BRISK feature detection or similar algorithms.
+        - Apply the pyramidal Lucas-Kanade algorithm for optical flow tracking.
+
+    - Match features with prebuilt map (if using map-dependent localization):
+        - Associate current image features with known map landmarks.
+
+    - Update Graph:
+        - Add new nodes for the current robot pose.
+        - Create IMU preintegration factors based on IMU data.
+        - Create visual odometry smart factors from feature tracks.
+        - Add map-based projection factors if using map-based localization.
+
+    - Optimize Graph:
+        - Perform graph optimization using ISAM2 or a similar algorithm.
+        - Limit the optimization time and iterations for efficiency.
+        - Apply sliding window marginalization to maintain a manageable graph size.
+
+    - Estimate State:
+        - Extract the current robot pose, velocity, and IMU biases from the graph.
+        - Extrapolate high-frequency updates using IMU data and the latest estimates.
+
+    - Handle Cheirality and Outliers:
+        - Implement methods to handle cheirality issues in visual odometry and localization factors.
+        - Use robust loss functions like Huber loss to mitigate the impact of outliers.
+
+    - Sanity Check:
+        - Perform checks on the estimated state to ensure reliability.
+        - Reset or recalibrate if the state estimation deviates significantly from expected values.
+
+    - Provide Output:
+        - Output the current estimated state (pose, velocity, biases) for robot navigation and control.
+        - Optionally, update the map if in a mapping mode.
+
+Repeat the loop to continuously update the robot's state and map.
