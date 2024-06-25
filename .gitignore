@@ -17,3 +17,10 @@
 *.so
 *.pyc
 .vscode/
+
+**/rosbags
+*.mcap
+*.db3
+*.png
+
+**/camera_calibration
