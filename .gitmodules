@@ -1,0 +1,12 @@
+[submodule "ros2_ws/src/ros2_aruco"]
+	path = ros2_ws/src/ros2_aruco
+	url = git@github.com:JMU-ROBOTICS-VIVA/ros2_aruco.git
+[submodule "ros2_ws/src/aruco_ros"]
+	path = ros2_ws/src/aruco_ros
+	url = git@github.com:JMU-ROBOTICS-VIVA/ros2_aruco.git
+[submodule "ros2_ws/src/mavros"]
+	path = ros2_ws/src/mavros
+	url = https://github.com/mavlink/mavros.git
+[submodule "ros2_ws/src/mavlink"]
+	path = ros2_ws/src/mavlink
+	url = https://github.com/mavlink/mavlink.git
