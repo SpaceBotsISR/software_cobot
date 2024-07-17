@@ -225,13 +225,18 @@ class AttitudeController(Node):
             sol = self.controller.step(self.w, self.w_dot, self.q, self.desired_attitude)
             actuation = sol.value(self.controller.u[:, 0])
             
+            msg = Float64MultiArray()
+            msg.data = []
+
+
             ## convert thrust to pwm 
             for i in range(len(actuation)):
-                actuation[i] = self.thrust_to_pwm(actuation[i])
+                msg.data.append( int(self.thrust_to_pwm(actuation[i])) )
+            
+            self.get_logger().warn('Actuation: {}'.format(actuation))
             
             ## publish the pwm instead of returning it 
-            msg = Float64MultiArray()
-            msg.data = actuation
+
 
             self.actuation_publisher.publish(msg)
 
@@ -251,11 +256,10 @@ class AttitudeController(Node):
             pwm - float: the pwm value to send to the motor
         '''
         pwm = None
-        x = None
         if thrust > 0:
-            pwm, x = self.neg_ThrustPwmConvert.thrust_to_pwm(thrust)
+            pwm = self.neg_ThrustPwmConvert.thrust_to_pwm(thrust)
         else:
-            pwm, x  = self.pos_ThrustPwmConvert.thrust_to_pwm(thrust)
+            pwm  = self.pos_ThrustPwmConvert.thrust_to_pwm(thrust)
 
         return pwm
 

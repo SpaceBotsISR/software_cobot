@@ -70,7 +70,7 @@ class ThrustPwmConvert:
 
     def thrust_to_pwm(self, thrust : float): 
         if (np.abs(thrust) < 0.1):
-            return self.engine_off_pwm, [0.0]
+            return self.engine_off_pwm
 
         specific_solution = [sol.subs(self.thrust, thrust) for sol in self.general_solution]
 
@@ -80,10 +80,10 @@ class ThrustPwmConvert:
 
         ## This condition checks that we have at least one pwm value that is allowed, and if so, we return the command that turns off the engine
         if (len(desired_pwm) < 1):
-            return self.engine_off_pwm, specific_solution
-        
+            return self.engine_off_pwm
+       
         ## Return the first value of pwm that will produce a certain thrust, if more than one exist (should not be possible), we will return only on of them
-        return desired_pwm[0], specific_solution
+        return desired_pwm[0]
 
 
     def pwm_to_thrust(self, pwm : float): 
