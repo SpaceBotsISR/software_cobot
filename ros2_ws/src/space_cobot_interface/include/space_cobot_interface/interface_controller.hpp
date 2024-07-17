@@ -39,17 +39,6 @@ private:
     rclcpp::TimerBase::SharedPtr spin_timer;
     rclcpp::TimerBase::SharedPtr controll_watch_dog; 
 
-
-    unsigned int kill_switch_channel = 4;
-    unsigned int kill_switch_action_value = 1901;
-
-    unsigned int restart_switch_channel = 6;
-    unsigned int restart_switch_value = 1;
-
-    bool interface_already_running = false;
-    bool node_restart = true;
-    bool first_start = true;
-
     rclcpp::executors::SingleThreadedExecutor executor;
 
     std::shared_ptr<rclcpp::Client<lifecycle_msgs::srv::GetState>> client_get_state;
