@@ -178,7 +178,7 @@ void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiA
     {
         RCLCPP_WARN(get_logger(), " data %lf" , msg->data[i]);
         if (msg->data[i] >= 1000 && msg->data[i] <= 2000) {
-            actuator_control_msg.controls[i] = msg->data[i] - 1500;
+            actuator_control_msg.controls[i] = (float)(msg->data[i] - 1500.0) / 1000.0;
         } else {
            actuator_control_msg.controls[i] = 1500;
         }
