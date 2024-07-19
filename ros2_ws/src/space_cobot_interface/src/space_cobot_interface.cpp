@@ -179,14 +179,15 @@ void Space_Cobot_Interface::reset_clients()
 void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
 {
     actuator_control_msg.group_mix = 0;
+    this->control_last_message = this->get_clock()->now();
 
     for (int i = 0; i < NUM_MOTORS; i++)
     {
         RCLCPP_WARN(get_logger(), " data %lf" , msg->data[i]);
         if (msg->data[i] >= 1000 && msg->data[i] <= 2000) {
-            actuator_control_msg.controls[i] = (float)(msg->data[i] - 1500.0) / 1000.0;
+            this->actuator_control_msg.controls[i] = (float)(msg->data[i] - 1500.0) / 1000.0;
         } else {
-           actuator_control_msg.controls[i] = 0.0;
+           this->actuator_control_msg.controls[i] = 0.0;
         }
     }
 
