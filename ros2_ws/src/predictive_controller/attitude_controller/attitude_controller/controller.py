@@ -101,9 +101,12 @@ class RotationDynamics:
             self.opti.set_initial(self.q[:, i], sc.Rotation.from_euler('xyz', [0, 0, 0], degrees=True).as_quat(seq='xyzw'))
 
             self.opti.subject_to(self.opti.bounded(-5, self.w[0, i], 5))
+            current = 0
             for j in range(6):
+                current_j = 2 + self.u[j, i]**2
+                current += current_j
                 # newtons of thrust applied by each rotor
-                self.opti.subject_to(self.opti.bounded(-10, self.u[j, i], 10))
+            self.opti.subject_to(current <= 30) # limit the current of the battery to 30 A
 
         # Define the dynamics and constraints
         for i in range(0, self.N):
@@ -138,7 +141,6 @@ class RotationDynamics:
             'warm_start_mult_bound_push': 1e-4, 
             'tol' : 1e-4, 
             'acceptable_iter' : 7, 
-
         }
 
         self.opti.solver('ipopt', s_opts, p_opts)
