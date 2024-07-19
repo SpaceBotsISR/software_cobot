@@ -57,7 +57,7 @@ class AttitudeController(Node):
         self.imu_data_subscriber = self.create_subscription(Imu, '/mavros/imu/data', self.imu_data_callback, QoSPresetProfiles.SENSOR_DATA.value)
         self.desired_attitude_subscriber = self.create_subscription(Float64MultiArray, 'desired_attitude', self.desired_attitude_callback, 10)
         ## Declare the publisher
-        self.actuation_publisher = self.create_publisher(Float64MultiArray, '/desired_actuation', 10)
+        self.actuation_publisher = self.create_publisher(Float64MultiArray, '/desired_attuation', 10)
 
         ## Declare the parameters 
         self.declare_parameter('controller_dt', 0.1) # 10 Hz = 0.1 s
