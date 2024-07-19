@@ -177,8 +177,11 @@ void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiA
     for (int i = 0; i < NUM_MOTORS; i++)
     {
         RCLCPP_WARN(get_logger(), " data %lf" , msg->data[i]);
-        actuator_control_msg.controls[i] = msg->data[i];
-
+        if (msg->data[i] >= 1000 && msg->data[i] <= 2000) {
+            actuator_control_msg.controls[i] = msg->data[i] - 1500;
+        } else {
+           attitude_controller = 1500;
+        }
     }
 
     this->actuator_controls_pub->publish(actuator_control_msg);
