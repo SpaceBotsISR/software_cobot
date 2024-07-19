@@ -128,14 +128,21 @@ private:
 
   void set_mode_px4();
 
+  void send_actuation();
+
   // Used when control goes down
   void actuator_zero_setpoint();
 
+  rclcpp::TimerBase::SharedPtr send_actuation_timer;
   rclcpp::TimerBase::SharedPtr px4_arming_timer;
   rclcpp::Time last_arming_request;
   rclcpp::Time control_last_message; 
 
   rclcpp::TimerBase::SharedPtr control_watchdog;
+  
+  // Actuation message
+  mavros_msgs::msg::ActuatorControl actuator_control_msg;
+
 };
 
 #endif // __SPACE_COBOT_INTERFACE_HPP__

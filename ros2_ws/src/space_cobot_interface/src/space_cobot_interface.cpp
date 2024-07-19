@@ -79,8 +79,6 @@ rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Space_
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
-
-
 rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Space_Cobot_Interface::on_deactivate(const rclcpp_lifecycle::State &state)
 {
     // Send zero force and torque one last time
@@ -127,12 +125,23 @@ rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn Space_
     return rclcpp_lifecycle::node_interfaces::LifecycleNodeInterface::CallbackReturn::SUCCESS;
 }
 
+void Space_Cobot_Interface::send_actuation()
+{
+    this->actuator_control_msg.header.stamp = this->get_clock()->now();
+    this->actuator_control_msg.group_mix = 0;
+
+    this->actuator_controls_pub->publish(this->actuator_control_msg);
+    return;
+}
+
 void Space_Cobot_Interface::declare_publishers()
 {
     this->pub_force = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/force", 1000);
     this->pub_torque = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/torque", 1000);
     this->local_pos_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/mavros/setpoint_position/local", 10);
     this->actuator_controls_pub = this->create_publisher<mavros_msgs::msg::ActuatorControl>("/mavros/actuator_control", 1000);
+
+    this->send_actuation_timer = this->create_wall_timer(std::chrono::milliseconds(10), std::bind(&Space_Cobot_Interface::send_actuation, this));
 }
 
 void Space_Cobot_Interface::declare_subscribers()
@@ -169,9 +178,6 @@ void Space_Cobot_Interface::reset_clients()
 
 void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiArray::SharedPtr msg)
 {
-    mavros_msgs::msg::ActuatorControl actuator_control_msg;
-
-    this->control_last_message = actuator_control_msg.header.stamp = this->get_clock()->now();
     actuator_control_msg.group_mix = 0;
 
     for (int i = 0; i < NUM_MOTORS; i++)
@@ -180,19 +186,17 @@ void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiA
         if (msg->data[i] >= 1000 && msg->data[i] <= 2000) {
             actuator_control_msg.controls[i] = (float)(msg->data[i] - 1500.0) / 1000.0;
         } else {
-           actuator_control_msg.controls[i] = 1500;
+           actuator_control_msg.controls[i] = 0.0;
         }
     }
 
-    this->actuator_controls_pub->publish(actuator_control_msg);
+    return;
 }
 
 
 void Space_Cobot_Interface::actuator_zero_setpoint(){
-    if (this->get_clock()->now() - control_last_message > std::chrono::milliseconds(100)){
+    if (this->get_clock()->now() - control_last_message > std::chrono::milliseconds(1000)){
         
-        mavros_msgs::msg::ActuatorControl actuator_control_msg; 
-
         actuator_control_msg.header.stamp = this->get_clock()->now(); 
         actuator_control_msg.group_mix = 0;
 
