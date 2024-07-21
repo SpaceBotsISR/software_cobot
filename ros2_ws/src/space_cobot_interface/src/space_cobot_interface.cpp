@@ -139,8 +139,7 @@ void Space_Cobot_Interface::declare_publishers()
     this->pub_force = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/force", 1000);
     this->pub_torque = this->create_publisher<geometry_msgs::msg::Vector3Stamped>("/open_loop/torque", 1000);
     this->local_pos_pub = this->create_publisher<geometry_msgs::msg::PoseStamped>("/mavros/setpoint_position/local", 10);
-    this->actuator_controls_pub = this->create_publisher<mavros_msgs::msg::ActuatorControl>("/mavros/actuator_control", 1000);
-
+    this->actuator_controls_pub = this->create_publisher<mavros_msgs::msg::ActuatorControl>("/mavros/actuator_control", 1000);  
     this->send_actuation_timer = this->create_wall_timer(std::chrono::milliseconds(10), std::bind(&Space_Cobot_Interface::send_actuation, this));
 }
 
@@ -185,7 +184,7 @@ void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiA
     {
         RCLCPP_WARN(get_logger(), " data %lf" , msg->data[i]);
         if (msg->data[i] >= 1000 && msg->data[i] <= 2000) {
-            this->actuator_control_msg.controls[i] = (float)(msg->data[i] - 1500.0) / 1000.0;
+            this->actuator_control_msg.controls[i] = ((float)msg->data[i] - 1500.0f) / 1000.0f;
         } else {
            this->actuator_control_msg.controls[i] = 0.0;
         }
@@ -197,16 +196,12 @@ void Space_Cobot_Interface::pwmValuesCallback(const std_msgs::msg::Float64MultiA
 
 void Space_Cobot_Interface::actuator_zero_setpoint(){
     if (this->get_clock()->now() - control_last_message > std::chrono::milliseconds(1000)){
-        
         actuator_control_msg.header.stamp = this->get_clock()->now(); 
         actuator_control_msg.group_mix = 0;
 
         for (int i = 0; i < 6; i++) {
             actuator_control_msg.controls[i] = 0.0;
         }
-    
-        this->actuator_controls_pub->publish(actuator_control_msg);
-
     } 
     return;
 }
@@ -219,7 +214,6 @@ void Space_Cobot_Interface::state_cb(const mavros_msgs::msg::State::SharedPtr ms
 
 void Space_Cobot_Interface::set_mode_px4()
 {
-
     if (current_state.mode == "OFFBOARD" && current_state.armed &&
         this->get_clock()->now() - last_arming_request < rclcpp::Duration::from_seconds(2.5))
     {
@@ -265,14 +259,6 @@ void Space_Cobot_Interface::change_px4_custom_mode(std::string new_mode)
     RCLCPP_INFO(get_logger(), "changing to %s", new_mode.c_str());
 
     auto result = this->set_mode_client->async_send_request(std::move(set_mode_req));
-    //if (rclcpp::spin_until_future_complete(this->get_node_base_interface(), result, std::chrono::milliseconds(50)) == rclcpp::FutureReturnCode::SUCCESS)
-    //{
-    //    RCLCPP_INFO(this->get_logger(), "Set mode sent %s", new_mode.c_str());
-    //}
-    //else
-    //{
-    //    RCLCPP_ERROR(this->get_logger(), "Failed to set mode");
-    //}
 }
 
 void Space_Cobot_Interface::change_px4_arm_state(bool arm)
