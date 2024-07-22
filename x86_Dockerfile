@@ -1,25 +1,25 @@
 # Use the base image for arm64 architecture and the ROS distribution "humble"
 FROM ros:humble
 
-
+ARG ROS_DISTRO=humble
 
 # Install packages
 RUN apt-get update -y && apt-get -y upgrade
 
 RUN apt-get install -y \ 
-    ros-humble-teleop-twist-keyboard \
-    ros-humble-rviz2 \
-    ros-humble-rviz-common \
-    ros-humble-rviz-default-plugins \
-    ros-humble-rviz-visual-tools \
-    ros-humble-rviz-rendering \
-    ros-humble-nav2-rviz-plugins \
-    ros-humble-foxglove-bridge \
-    ros-humble-rosbag2-storage-mcap \
-    ros-humble-camera-calibration-parsers \
-    ros-humble-camera-info-manager \
-    ros-humble-mavros \
-    ros-humble-mavros-extras \
+    ros-${ROS_DISTRO}-teleop-twist-keyboard \
+    ros-${ROS_DISTRO}-rviz2 \
+    ros-${ROS_DISTRO}-rviz-common \
+    ros-${ROS_DISTRO}-rviz-default-plugins \
+    ros-${ROS_DISTRO}-rviz-visual-tools \
+    ros-${ROS_DISTRO}-rviz-rendering \
+    ros-${ROS_DISTRO}-nav2-rviz-plugins \
+    ros-${ROS_DISTRO}-foxglove-bridge \
+    ros-${ROS_DISTRO}-rosbag2-storage-mcap \
+    ros-${ROS_DISTRO}-camera-calibration-parsers \
+    ros-${ROS_DISTRO}-camera-info-manager \
+    ros-${ROS_DISTRO}-mavros \
+    ros-${ROS_DISTRO}-mavros-extras \
     libtf2-dev \
     # gstreamer:
     libgstreamer1.0-0 \
@@ -48,20 +48,22 @@ RUN apt-get install -y \
     libopencv-dev \ 
     python3-opencv
 
-RUN sudo apt-get install -y ros-humble-mavros \
-    ros-humble-teleop-twist-keyboard \
-    ros-humble-rviz2 \
-    ros-humble-rviz-common \
-    ros-humble-rviz-default-plugins \
-    ros-humble-rviz-visual-tools \
-    ros-humble-rviz-rendering \
-    ros-humble-nav2-rviz-plugins \
-    ros-humble-foxglove-bridge \
-    ros-humble-rosbag2-storage-mcap \
-    ros-humble-camera-calibration-parsers \
-    ros-humble-camera-info-manager \
-    ros-humble-sensor-msgs \
-    ros-humble-tf-transformations \
+RUN sudo apt-get install -y ros-${ROS_DISTRO}-mavros \
+    ros-${ROS_DISTRO}-teleop-twist-keyboard \
+    ros-${ROS_DISTRO}-rviz2 \
+    ros-${ROS_DISTRO}-rviz-common \
+    ros-${ROS_DISTRO}-rviz-default-plugins \
+    ros-${ROS_DISTRO}-rviz-visual-tools \
+    ros-${ROS_DISTRO}-rviz-rendering \
+    ros-${ROS_DISTRO}-nav2-rviz-plugins \
+    ros-${ROS_DISTRO}-foxglove-bridge \
+    ros-${ROS_DISTRO}-rosbag2-storage-mcap \
+    ros-${ROS_DISTRO}-camera-calibration-parsers \
+    ros-${ROS_DISTRO}-camera-info-manager \
+    ros-${ROS_DISTRO}-sensor-msgs \
+    ros-${ROS_DISTRO}-tf-transformations \
+    ros-${ROS_DISTRO}-tf2-geometry-msgs \
+    ros-${ROS_DISTRO}-ros-gz \
     libtf2-dev \
     # Others:
     git \
@@ -80,7 +82,7 @@ RUN sudo apt-get install -y ros-humble-mavros \
     pip install \
     opencv-python \
     opencv-contrib-python \
-    transforms3d \
+    transforms3d && \ 
     pip install opencv-contrib-python==4.6.0.66
 
 
@@ -90,12 +92,7 @@ RUN mkdir /cobot
 #COPY entrypoint.sh /entrypoint.sh
 
 # Add environment setup to the user's .bashrc
-RUN echo "source /opt/ros/humble/setup.bash" >> /root/.bashrc
-#RUN echo "source /usr/share/colcon_cd/function/colcon_cd.sh" >> /root/.bashrc
-#RUN echo "source /usr/share/colcon_argcomplete/hook/colcon-argcomplete.bash" >> /root/.bashrc
-#RUN echo "export _colcon_cd_root=/opt/ros/humble/" >> /root/.bashrc
-#RUN cat /entrypoint.sh >> ~/.bashrc
-
+RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc
 
 RUN git clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git && \ 
     cd Micro-XRCE-DDS-Agent && \
