@@ -119,6 +119,8 @@ class AttitudeController(Node):
         neg_pwm_to_thrust_coefs = np.load(self.neg_thrust_model_path)
         pos_pwm_to_thrust_coefs = np.load(self.pos_thrust_model_path)
 
+        J *= 10
+
         A = A[0:3, :]
 
         self.neg_ThrustPwmConvert = ThrustPwmConvert(neg_pwm_to_thrust_coefs, [1000, 1500], 1500)
@@ -202,6 +204,7 @@ class AttitudeController(Node):
         Returns
             None
         '''
+        
         if len(msg.data) == 3:
             self.desired_attitude = np.array(msg.data)
         
@@ -236,7 +239,7 @@ class AttitudeController(Node):
 
             ## convert thrust to pwm 
             for i in range(len(actuation)):
-                msg.data.append( int(self.thrust_to_pwm(actuation[i])) )
+                msg.data.append( int(self.thrust_to_pwm(actuation[i], i + 1)) )
             
             self.get_logger().warn('Actuation: {}'.format(actuation))
             
@@ -249,7 +252,7 @@ class AttitudeController(Node):
             self.get_logger().warn('The imu data is still not available, not running control')
             return np.zeros((6, 1))
 
-    def thrust_to_pwm(self, thrust : float): 
+    def thrust_to_pwm(self, thrust : float, motor_id : int): 
         '''
         Convert the desired thrust to pwm value to send to the motor
         The polinomial function we used here was obtained by fitting a curve of collect data from the motor using RC benchmark
@@ -261,6 +264,10 @@ class AttitudeController(Node):
             pwm - float: the pwm value to send to the motor
         '''
         pwm = None
+
+        if motor_id % 2 != 0: 
+            thrust *= -1
+
         if thrust > 0:
             pwm = self.neg_ThrustPwmConvert.thrust_to_pwm(thrust)
         else:
