@@ -222,7 +222,12 @@ class AttitudeController(Node):
         '''
         ## get actuation in rps (rotation per second)
         if self.imu is not None:
+            start = time.time_ns()
             sol = self.controller.step(self.w, self.w_dot, self.q, self.desired_attitude)
+            end = time.time_ns()
+
+            self.get_logger().warn('Time (ms) to solve the optimization problem: {}'.format((end - start) * 1e-6)) 
+
             actuation = sol.value(self.controller.u[:, 0])
             
             msg = Float64MultiArray()

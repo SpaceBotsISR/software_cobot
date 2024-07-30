@@ -30,7 +30,7 @@ class RotationDynamics:
     Class for simulating the rotational dynamics of a rigid body.
     """
 
-    def __init__(self, J: np.array, c: np.array, A: np.array, N: int = 40, T: float = 1/50):
+    def __init__(self, J: np.array, c: np.array, A: np.array, N: int = 50, T: float = 1/25):
         """
         Initialize the RotationDynamics class.
         
@@ -55,8 +55,8 @@ class RotationDynamics:
         self.opti = ca.Opti()
 
         # Define optimization variables
-        self.w = self.opti.variable(3, self.N)  # angular velocity
         self.w_dot = self.opti.variable(3, self.N)  # angular acceleration
+        self.w = self.opti.variable(3, self.N)   # angular velocity
         self.q = self.opti.variable(4, self.N)  # quaternions
         self.u = self.opti.variable(6, self.N)  # actuation
 
@@ -91,22 +91,16 @@ class RotationDynamics:
         self.opti.subject_to(self.w_dot[:, 0] == self.w_dot_init)
         self.opti.subject_to(self.q[:, 0] == self.q_init)
 
-        self.final_objective_iter = self.N - 1
-
-        # Ensure final angular velocity is zero
-        self.opti.subject_to(self.w[:, self.final_objective_iter] == np.zeros(3))
-
         # Set initial guesses and bounds for optimization variables
         for i in range(0, self.N):
             self.opti.set_initial(self.q[:, i], sc.Rotation.from_euler('xyz', [0, 0, 0], degrees=True).as_quat(seq='xyzw'))
 
-            self.opti.subject_to(self.opti.bounded(-5, self.w[0, i], 5))
-            current = 0
-            for j in range(6):
-                current_j = 2 + self.u[j, i]**2
-                current += current_j
-                # newtons of thrust applied by each rotor
-            self.opti.subject_to(current <= 30) # limit the current of the battery to 30 A
+
+            self.opti.subject_to (ca.norm_2(self.u[:, i] + 1e-20) ** 2 <= 15)
+
+
+            for j in range(6): 
+                self.opti.subject_to(self.opti.bounded(-2, self.u[j, i], 2))
 
         # Define the dynamics and constraints
         for i in range(0, self.N):
@@ -120,12 +114,14 @@ class RotationDynamics:
 
         # Define the cost function
         self.cost_function = 0
+
+
         for i in range(1, self.N):
+            # compute the current in A based on the thrust
             c_r = sc.Rotation.from_quat(self.q[:, i], seq='xyzw').as_matrix()
-            self.cost_function += 0.01 * ca.sumsqr(self.u[:, i]) + 1000 * ca.trace(ca.MX.eye(3) - (self.desired_r @ c_r.T))
+            self.cost_function += ca.trace(ca.MX.eye(3) - (self.desired_r @ c_r.T))
 
         self.opti.minimize(self.cost_function)
-
 
         # Solver options
         s_opts = {
@@ -134,13 +130,8 @@ class RotationDynamics:
         }
 
         p_opts = {'print_level': 0 , 
-            'warm_start_bound_push': 1e-4,
-            'warm_start_bound_frac': 1e-4,
-            'warm_start_slack_bound_frac': 1e-4, 
-            'warm_start_slack_bound_push': 1e-4,
-            'warm_start_mult_bound_push': 1e-4, 
-            'tol' : 1e-4, 
-            'acceptable_iter' : 7, 
+            'tol' : 1e-3, 
+            'acceptable_iter' : 15, 
         }
 
         self.opti.solver('ipopt', s_opts, p_opts)
@@ -165,7 +156,11 @@ class RotationDynamics:
         self.opti.set_value(self.desired_r, desired_rotation_matrix)
         
         if hasattr(self, 'sol'):
-            self.opti.set_initial(self.q, self.sol.value(self.q))
+
+            q_norms = np.linalg.norm(self.sol.value(self.q), axis=0)
+            quat = self.sol.value(self.q) / q_norms
+
+            self.opti.set_initial(self.q, quat)
             self.opti.set_initial(self.w, self.sol.value(self.w))
             self.opti.set_initial(self.w_dot, self.sol.value(self.w_dot))
             self.opti.set_initial(self.u, self.sol.value(self.u))
@@ -178,12 +173,12 @@ class RotationDynamics:
         Integrate quaternion q using angular velocity w over time t.
 
         Parameters:
-        q: Quaternion.
-        w: Angular velocity.
-        t: Time step.
+            q: Quaternion.
+            w: Angular velocity.
+            t: Time step.
 
         Returns:
-        Integrated quaternion.
+            Integrated quaternion.
         """
         epsilon = 1e-20  # to avoid division by zero
         w_ = w + epsilon
