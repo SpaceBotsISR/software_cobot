@@ -1,17 +1,17 @@
 # MIT License
-# 
+#
 # Copyright (c) 2024 Andre Rebelo Teixeira
-# 
+#
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
-# 
+#
 # The above copyright notice and this permission notice shall be included in all
 # copies or substantial portions of the Software.
-# 
+#
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -25,21 +25,28 @@ import spatial_casadi as sc
 import numpy as np
 import matplotlib.pyplot as plt
 
-class RotationDynamics:
+from scipy.spatial.transform import Rotation as R
+
+class RotationDynamicsNMPC:
     """
-    Class for simulating the rotational dynamics of a rigid body.
+    Class for simulating the rotational dynamics of a rigid body
     """
 
-    def __init__(self, J: np.array, c: np.array, A: np.array, N: int = 50, T: float = 1/25):
+    def __init__(self,
+                J: np.ndarray,
+                c: np.ndarray,
+                A: np.ndarray,
+                N: int = 10,
+                T: float = 1/50):
         """
-        Initialize the RotationDynamics class.
-        
+        Constructor for the NMPC class responsible for the control in attitude of the space cobot drone.
+
         Parameters:
-        J (np.array): Inertia matrix.
-        c (np.array): Vector c.
-        A (np.array): Actuation matrix.
-        N (int): Number of time steps.
-        T (float): Time step duration.
+            J : np.ndarray - Inertia matrix of the drone
+            c : np.ndarray - Center of mass of the drone
+            A : np.ndarray - Actuation matrix of the drone
+            N : int - Size of the horizon for the NMPC
+            T : float - The time step for the NMPC
         """
         self.J_ = J
         self.c_ = c
@@ -48,115 +55,171 @@ class RotationDynamics:
         self.N = N
         self.T = T
 
+        self.opts = {}
+
+        self.problem_is_setup = False
+
     def setup(self):
         """
         Set up the optimization problem for the rotational dynamics.
         """
+        if self.problem_is_setup:
+            return
+
         self.opti = ca.Opti()
 
-        # Define optimization variables
-        self.w_dot = self.opti.variable(3, self.N)  # angular acceleration
-        self.w = self.opti.variable(3, self.N)   # angular velocity
-        self.q = self.opti.variable(4, self.N)  # quaternions
-        self.u = self.opti.variable(6, self.N)  # actuation
+        self.w = self.opti.variable(3, self.N) # angular velocity
+        self.w_dot = self.opti.variable(3, self.N) # angular acceleration
+        self.q = self.opti.variable(4, self.N) # quaternions
+        self.u = self.opti.variable(6, self.N) # actuation
 
-        # Define initial conditions as parameters
-        self.w_init = self.opti.parameter(3, 1)  # initial angular velocity
-        self.w_dot_init = self.opti.parameter(3, 1)  # initial angular acceleration
-        self.q_init = self.opti.parameter(4, 1)  # initial orientation
+        self.w0 = self.opti.parameter(3, 1) # initial angular velocity
+        self.w_dot0 = self.opti.parameter(3, 1) # initial angular acceleration
+        self.q0 = self.opti.parameter(4, 1) # initial orientation in quaternion form 'xyzw'
+        self.desired_rotation_matrix = self.opti.parameter(3, 3) # desired rotation matrix
 
-        # Set initial values
-        self.opti.set_value(self.w_init, np.zeros(3))
-        self.opti.set_value(self.w_dot_init, np.zeros(3))
-        self.opti.set_value(self.q_init, sc.Rotation.from_euler('xyz', [0, 0, 0], degrees=True).as_quat(seq='xyzw'))
+        # np.array only to check if the previous desired rotations matrix is the same as the current for the warm start of the optimization problem - THIS SHOULD NEVER BE USED IN THE SETUP FUNCTION ONLY IN THE STEP FUNCTION FOR VERIFICATION AND LATER UPDATE
+        self.desired_r = np.identity(3)
 
-        # Define the desired rotation matrix as a parameter
-        self.desired_r = self.opti.parameter(3, 3)
-        desired_r = sc.Rotation.from_euler('xyz', [0, 0, 0], degrees=True).as_matrix()
-        self.opti.set_value(self.desired_r, desired_r)
+        self.J = self.opti.parameter(3, 3) # inertia matrix
+        self.g = self.opti.parameter(3, 1) # gravity
+        self.A = self.opti.parameter(3, 6) # actuation matrix
+        self.skew_c = self.opti.parameter(3, 3) # skew matrix of c
 
-        # Define other parameters
-        self.J = self.opti.parameter(3, 3)  # inertia matrix
-        self.g = self.opti.parameter(3, 1)  # gravity
-        self.A = self.opti.parameter(3, 6)  # actuation matrix
-        self.skew_c = self.opti.parameter(3, 3)  # skew matrix of c
+        # Inital parameters for initial conditions
+        self.opti.set_value(self.w0, np.zeros(3))
+        self.opti.set_value(self.w_dot0, np.zeros(3))
+        self.opti.set_value(self.q0, R.from_euler('xyz', [0, 0, 0], degrees=True).as_quat())
+        self.opti.set_value(self.desired_rotation_matrix, R.from_euler('xyz', [0, 0, 0], degrees=True).as_matrix())
 
+        # Values for the mechanical parameters of the system
         self.opti.set_value(self.J, self.J_)
         self.opti.set_value(self.g, np.array([0, 0, -9.81]))
         self.opti.set_value(self.A, self.A_)
         self.opti.set_value(self.skew_c, ca.skew(self.c_))
 
-        # Set initial conditions constraints
-        self.opti.subject_to(self.w[:, 0] == self.w_init)
-        self.opti.subject_to(self.w_dot[:, 0] == self.w_dot_init)
-        self.opti.subject_to(self.q[:, 0] == self.q_init)
+        # Initial conditions constraints
+        self.opti._subject_to(self.w[:, 0] == self.w0)
+        self.opti._subject_to(self.w_dot[:, 0] == self.w_dot0)
+        self.opti._subject_to(self.q[:, 0] == self.q0)
 
-        # Set initial guesses and bounds for optimization variables
+        # Inital condition and boundaries for the optimization variables
         for i in range(0, self.N):
             self.opti.set_initial(self.q[:, i], sc.Rotation.from_euler('xyz', [0, 0, 0], degrees=True).as_quat(seq='xyzw'))
-
-
-            self.opti.subject_to (ca.norm_2(self.u[:, i] + 1e-20) ** 2 <= 15)
-
-
-            for j in range(6): 
+            # Bound the thrust of each propeller to be between -2N and 2N
+            for j in range(6):
                 self.opti.subject_to(self.opti.bounded(-2, self.u[j, i], 2))
 
-        # Define the dynamics and constraints
+        # Dynamics of the system
         for i in range(0, self.N):
             c_r = sc.Rotation.from_quat(self.q[:, i], seq="xyzw").as_matrix()
             self.opti.subject_to(self.J @ self.w_dot[:, i] + ca.skew(self.w[:, i]) @ self.J @ self.w[:, i] - self.skew_c @ c_r.T @ self.g == self.A @ self.u[:, i])
 
-        # Define the integration constraints for quaternions and angular velocity
+        # Integrate the quaternions and the angulas velocity based on the current angular velocity and acceleration
         for i in range(0, self.N-1):
             self.opti.subject_to(self.q[:, i+1] == self.quaternion_integration(self.q[:, i], self.w[:, i], self.T))
             self.opti.subject_to(self.w[:, i+1] == self.w[:, i] + self.T * self.w_dot[:, i])
 
-        # Define the cost function
-        self.cost_function = 0
+        # Cost function
+        @staticmethod
+        def rotation_matrix_error(current_r, desired_r):
+            '''
+            Computes the error between the current and desired rotation matrix
 
+            Observation:
+                This is an auxiliary function that can only be called from inside the setup function of the NMPC Class
 
-        for i in range(1, self.N):
-            # compute the current in A based on the thrust
-            c_r = sc.Rotation.from_quat(self.q[:, i], seq='xyzw').as_matrix()
-            self.cost_function += ca.trace(ca.MX.eye(3) - (self.desired_r @ c_r.T))
+            Parameters:
+                current_r : sc.Rotation - current rotation matrix
+                desired_r : sc.Rotation - desired rotation matrix
 
-        self.opti.minimize(self.cost_function)
+            Returns:
+                ca.MX - error between the current and desired rotation
+            '''
+            return ca.trace(ca.MX.eye(3) - (desired_r.T @ current_r))
 
-        # Solver options
-        s_opts = {
-            'print_time': 0,
-            'verbose': False
+        cost_function = 0
+        for k in range(0, self.N):
+            c_r = sc.Rotation.from_quat(self.q[:, k], seq='xyzw').as_matrix()
+            cost_function +=  rotation_matrix_error(c_r, self.desired_rotation_matrix)
+
+        self.opts = {
+            'ipopt': {
+                'print_level': 0,
+                'tol': 1e-4,
+                'acceptable_tol': 1e-4,
+                'acceptable_iter': 10,
+                'linear_solver': 'mumps',
+                'mu_strategy': 'adaptive',
+            },
+            'jit' : True,
+            'jit_cleanup' : False,
+            'jit_options' : {'flags' : '-O2'},
+            'print_time' : 0,
         }
 
-        p_opts = {'print_level': 0 , 
-            'tol' : 1e-3, 
-            'acceptable_iter' : 15, 
-        }
+        self.opti.solver('ipopt', self.opts)
 
-        self.opti.solver('ipopt', s_opts, p_opts)
+        self.opti.minimize(cost_function)
 
-    def step(self, w, w_dot, q, desired_r: sc.Rotation = [0, 0, 0]):
+        self.problem_is_setup = True
+
+
+    def set_ipopt_options(self):
+        self.opts.update({
+            'ipopt': {
+                'print_level': 0,              # IPOPT verbosity (0 = silent)
+                'tol': 1e-4,                   # Tolerance for convergence
+                'mu_strategy': 'adaptive',     # Adaptive barrier parameter strategy
+                'linear_solver': 'mumps',      # Linear solver choice (e.g., MUMPS)
+                'acceptable_tol': 1e-4,        # Tolerance for acceptable solution
+                'acceptable_iter': 10,         # Number of iterations for acceptable solution
+            },
+        })
+        return
+
+    def set_jit(self):
+        self.opts.update({
+            'jit' : True,
+            'jit_cleanup' : False,
+            'jit_options' : {
+                'compiler' : 'ccache gcc'
+#                'flags': ['-O2'],
+            },
+
+        })
+
+        return
+
+
+    def step(self,
+            w0 : np.ndarray,
+            w_dot0 : np.ndarray,
+            q0 : np.ndarray,
+            desired_r : R):
         """
-        Perform a step of the optimization with current states and desired rotation.
+        This function computes the optimal actuation for the current time step by solving an optimizations problem
 
         Parameters:
-        w: Current angular velocity.
-        w_dot: Current angular acceleration.
-        q: Current quaternion.
-        desired_r: Desired rotation.
+            w0 : np.ndarray : initial angular velocity
+            w_dot0 : np.ndarray : initial angular acceleration
 
         Returns:
-        Solution of the optimization problem.
-        """
-        desired_rotation_matrix = sc.Rotation.from_euler('xyz', desired_r, degrees=True).as_matrix()
-        self.opti.set_value(self.w_init, w)
-        self.opti.set_value(self.w_dot_init, w_dot)
-        self.opti.set_value(self.q_init, q)
-        self.opti.set_value(self.desired_r, desired_rotation_matrix)
-        
-        if hasattr(self, 'sol'):
+            np.ndarray : optimal actuation
 
+        """
+
+        if not self.problem_is_setup:
+            raise Exception("The problem has not been setup yet, call the setup function before calling the step function")
+
+        desired_rotation_matrix = sc.Rotation.from_euler('xyz', desired_r.as_quat(), degrees=True).as_matrix()
+
+        self.opti.set_value(self.w0, w0)
+        self.opti.set_value(self.w_dot0, w_dot0)
+        self.opti.set_value(self.q0, q0)
+        self.opti.set_value(self.desired_r, desired_rotation_matrix)
+
+        if hasattr(self, 'sol') and np.allclose(desired_rotation_matrix, self.desired_r):
             q_norms = np.linalg.norm(self.sol.value(self.q), axis=0)
             quat = self.sol.value(self.q) / q_norms
 
@@ -164,11 +227,12 @@ class RotationDynamics:
             self.opti.set_initial(self.w, self.sol.value(self.w))
             self.opti.set_initial(self.w_dot, self.sol.value(self.w_dot))
             self.opti.set_initial(self.u, self.sol.value(self.u))
-        
         self.sol = self.opti.solve()
-        return self.sol 
+        self.desired_r = desired_rotation_matrix
+        return self.sol
 
-    def quaternion_integration(self, q, w, t):
+    @staticmethod
+    def quaternion_integration(q, w, t):
         """
         Integrate quaternion q using angular velocity w over time t.
 
@@ -197,4 +261,3 @@ class RotationDynamics:
         )
 
         return q_ @ p
-
