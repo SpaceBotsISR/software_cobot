@@ -83,7 +83,7 @@ RUN sudo apt-get install -y ros-${ROS_DISTRO}-mavros \
     opencv-python \
     opencv-contrib-python \
     transforms3d && \ 
-    pip install opencv-contrib-python==4.6.0.66
+    pip install opencv-contrib-python==4.6.0.66 casadi spatial-casadi numpy scipy matplotlib transforms3d scikit-learn torch torchvision 
 
 
 RUN mkdir /cobot
@@ -94,6 +94,8 @@ RUN mkdir /cobot
 # Add environment setup to the user's .bashrc
 RUN echo "source /opt/ros/${ROS_DISTRO}/setup.bash" >> /root/.bashrc
 
+WORKDIR /
+
 RUN git clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git && \ 
     cd Micro-XRCE-DDS-Agent && \
     mkdir build &&  \
@@ -103,6 +105,17 @@ RUN git clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git && \
     sudo make install &&\
     sudo ldconfig /usr/local/lib/
 
+WORKDIR /
+
+RUN git clone --recursive --depth=1 https://github.com/casadi/casadi.git && \
+    mkdir ./casadi/build && \
+    cd ./casadi/build && \
+    cmake .. DWITH_IPOPT=ON && \
+    make -j 16 && \
+    sudo make install
+    
+
+# Install casasdi
 
 # Set the entry point and default command
 #ENTRYPOINT ["/bin/bash", "/entrypoint.sh", "bash"]
