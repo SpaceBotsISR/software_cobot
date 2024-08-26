@@ -15,22 +15,68 @@
 #include <rclcpp/duration.hpp>
 
 #include "attitude_controller_cpp/RotationCasadi.hpp"
+#include "attitude_controller_cpp/ControllerPipeline.hpp"
 
 typedef Eigen::Matrix<double, 3, 6> EigenMatrix3x6;
-
 
 class Controller : public rclcpp::Node {
 public:
   Controller(int N = 10, 
-            double dt = 1.0 / 50.0);
+            double dt = 1.0 / 50.0, 
+            int frequenct = 10);
   ~Controller();
+
   void setup();
-  void step(std::vector <double> w0, 
-            std::vector <double> w_dot0, 
-            std::vector <double> q0, 
-            std::vector <double> desired_rotation);
+  void step();
+
+  // * 
+  //NOTE
+private:
+  // Variables  
+  int N;
+  double dt;
+
+  std::vector <double> prevDesiredOrientation;
+  std::vector <double> prevImuAngularVelocity;
+  double prevImuMsgTime_ms = 0.0;  
+
+  casadi::Opti * opti;
+  std::optional<casadi::OptiSol> prev_sol ;
+
+  bool setup_done = false;
+
+  RotationCasadi rotation;
+  std::shared_ptr<ControllerPipeline> pipeline;
+
+  // Parameters
+  casadi::MX w0; 
+  casadi::MX w_dot0;
+  casadi::MX q0;
+  casadi::MX desired_rotation;
+
+  // Systems parameters
+  casadi::MX J; 
+  casadi::MX g; 
+  casadi::MX A; 
+  casadi::MX c;
+
+  // Variables
+  casadi::MX w;
+  casadi::MX w_dot; 
+  casadi::MX q; 
+  casadi::MX u;
 
 
+  Eigen::Matrix3d J_;
+  Eigen::Vector3d c_;
+  Eigen::Vector3d g_;
+
+  EigenMatrix3x6 A_;
+
+  rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub;
+  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr desired_orientation_sub;
+
+  rclcpp::TimerBase::SharedPtr step_timer;
 
   static inline bool file_exist(std::string file_path) {
     std::ifstream file(file_path.c_str());
@@ -125,38 +171,16 @@ public:
     return mat;
   }
 
-  int N;
-  double dt;
+  static inline bool compareQuaternions(std::vector<double> q, std::vector<double> p) {
+    double epsilon = 1e-3;
 
-  casadi::Opti * opti;
+    if (q[0] - p[0] < epsilon && q[1] - p[1] < epsilon && q[2] - p[2] < epsilon && q[3] - p[3] < epsilon) {
+      return true;
+    }
 
-  bool setup_done = false;
+    return false;
+  }
 
-  RotationCasadi rotation;
-
-  // Parameters
-  casadi::MX w0; 
-  casadi::MX w_dot0;
-  casadi::MX q0;
-  casadi::MX desired_rotation;
-
-  // Systems parameters
-  casadi::MX J; 
-  casadi::MX g; 
-  casadi::MX A; 
-  casadi::MX c;
-
-  // Variables
-  casadi::MX w;
-  casadi::MX w_dot; 
-  casadi::MX q; 
-  casadi::MX u;
-
-  Eigen::Matrix3d J_;
-  Eigen::Vector3d c_;
-  Eigen::Vector3d g_;
-
-  EigenMatrix3x6 A_;
 };
 
 #endif

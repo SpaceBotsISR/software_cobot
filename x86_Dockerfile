@@ -46,7 +46,8 @@ RUN apt-get install -y \
     bash-completion \
     vim \
     libopencv-dev \ 
-    python3-opencv
+    python3-opencv \
+	coinor-libipopt-dev
 
 RUN sudo apt-get install -y ros-${ROS_DISTRO}-mavros \
     ros-${ROS_DISTRO}-teleop-twist-keyboard \
@@ -110,7 +111,7 @@ WORKDIR /
 RUN git clone --recursive --depth=1 https://github.com/casadi/casadi.git && \
     mkdir ./casadi/build && \
     cd ./casadi/build && \
-    cmake .. DWITH_IPOPT=ON && \
+	cmake .. -DWITH_BUILD_REQUIRED=ON -DCMAKE_CXX_FLAGS=-O3 -DWITH_IPOPT=ON && \
     make -j 16 && \
     sudo make install
     
