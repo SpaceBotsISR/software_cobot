@@ -1,9 +1,0 @@
----
-delayed_information:
-  delay_time_ms:
-    time: 1500
-    name: delay_time_ms
-  topics:
-    name: topics
-    /mavros/imu/data: /delayed/mavros/imu/data
-    /mavros/imu/data2: /delayed/mavros/imu/data2

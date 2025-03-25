@@ -1,7 +1,0 @@
-cmake_minimum_required(VERSION 2.8)
-project( camera_streamer )
-find_package( OpenCV REQUIRED )
-include_directories( ${OpenCV_INCLUDE_DIRS} )
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
-add_executable( camera_streamer camera_streamer.cpp )
-target_link_libraries( camera_streamer ${OpenCV_LIBS} )
