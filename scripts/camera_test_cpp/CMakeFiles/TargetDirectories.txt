@@ -1,3 +1,0 @@
-/home/nvidia/Desktop/software_cobot/scripts/CMakeFiles/rebuild_cache.dir
-/home/nvidia/Desktop/software_cobot/scripts/CMakeFiles/DisplayImage.dir
-/home/nvidia/Desktop/software_cobot/scripts/CMakeFiles/edit_cache.dir
