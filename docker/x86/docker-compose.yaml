@@ -1,0 +1,28 @@
+version: "3.9"
+services:
+  space_cobot:
+    build: .
+    image: space_cobot:x86
+    container_name: space_cobot_container
+    network_mode: "host"
+    ipc: "host"
+    pid: "host"
+    privileged: true
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+      - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}
+      - UDEV=1
+    volumes:
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ../..:/home/space_cobot/software_cobot
+      - /dev:/dev  # access to USB and other devices
+      - /run/udev:/run/udev:ro  # udev support (optional but recommended for USB)
+    runtime: nvidia
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+    stdin_open: true
+    tty: true
