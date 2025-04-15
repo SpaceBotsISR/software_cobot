@@ -13,6 +13,8 @@ RUN apt-get update && apt-get install -y \
     ros-humble-nav2-rviz-plugins \
     ros-humble-foxglove-bridge \
     ros-humble-rosbag2-storage-mcap \
+    ros-humble-angles \ 
+    ros-humble-vision-opencv \
     git \
     ccache \
     net-tools \
@@ -57,9 +59,17 @@ RUN chown -R $USERNAME:$USERNAME /home/$USERNAME/.oh-my-zsh /home/$USERNAME/.zsh
 # COPY --chown=$USERNAME:$USERNAME .zshrc /home/$USERNAME/.zshrc
 
 # Python venv
+# Create Python virtual environment and install required Python packages
 RUN python3 -m venv /home/$USERNAME/venv && \
-    /home/$USERNAME/venv/bin/pip install --upgrade pip && \
-    /home/$USERNAME/venv/bin/pip install numpy opencv-python scipy
+    source /home/$USERNAME/venv/bin/activate && \
+    pip install --upgrade pip && \
+    pip install \
+    numpy \
+    opencv-python \
+    scipy \
+    catkin_pkg \
+    lark \
+    empy<4.0
 
 ENV PATH="/home/$USERNAME/venv/bin:$PATH"
 
