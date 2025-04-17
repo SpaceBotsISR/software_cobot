@@ -61,15 +61,15 @@ RUN chown -R $USERNAME:$USERNAME /home/$USERNAME/.oh-my-zsh /home/$USERNAME/.zsh
 # Python venv
 # Create Python virtual environment and install required Python packages
 RUN python3 -m venv /home/$USERNAME/venv && \
-    source /home/$USERNAME/venv/bin/activate && \
-    pip install --upgrade pip && \
-    pip install \
+    /home/$USERNAME/venv/bin/pip install --upgrade pip && \
+    /home/$USERNAME/venv/bin/pip install \
     numpy \
     opencv-python \
     scipy \
     catkin_pkg \
     lark \
-    empy<4.0
+    "empy<4.0"
+
 
 ENV PATH="/home/$USERNAME/venv/bin:$PATH"
 
