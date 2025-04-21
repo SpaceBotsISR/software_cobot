@@ -13,7 +13,7 @@ def generate_launch_description():
             package='aruco_opencv',
             executable='aruco_tracker_autostart',
             name='aruco_node',
-            parameters=[config, {'cam_base_topic': '/zed/zed_node/left/image_rect_color/compressed'}, {'output_frame': 'zed_left_camera_frame'}, {'board_descriptions_path': ''}, {' image_sub_compressed' : True}],
+            parameters=[config], 
             output='screen'
         ),
     ])
