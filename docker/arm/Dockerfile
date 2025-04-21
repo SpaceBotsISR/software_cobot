@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     ros-humble-rosbag2-storage-mcap \
     ros-humble-angles \ 
     ros-humble-vision-opencv \
+    ros-humble-cv-bridge \
     git \
     ccache \
     net-tools \
