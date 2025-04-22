@@ -5,15 +5,20 @@ from launch.substitutions import LaunchConfiguration
 from ament_index_python.packages import get_package_share_directory
 import os
 
+
 def generate_launch_description():
-    config = os.path.join(get_package_share_directory('aruco_opencv'), 'config', 'aruco_tracker.yaml')
-    
-    return LaunchDescription([
-        Node(
-            package='aruco_opencv',
-            executable='aruco_tracker_autostart',
-            name='aruco_node',
-            parameters=[config], 
-            output='screen'
-        ),
-    ])
+    config = os.path.join(
+        get_package_share_directory("aruco_opencv"), "config", "aruco_tracker.yaml"
+    )
+
+    return LaunchDescription(
+        [
+            Node(
+                package="aruco_opencv",
+                executable="aruco_tracker_autostart",
+                name="aruco_node",
+                parameters=[config],
+                output="log",
+            ),
+        ]
+    )
