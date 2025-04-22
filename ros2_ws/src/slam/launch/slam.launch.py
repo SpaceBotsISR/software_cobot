@@ -19,7 +19,7 @@ def generate_launch_description():
     )
 
     # Launch the EKF‐SLAM node from your slam package
-    ekf_node = Node(
+    slam_node = Node(
         package="slam",
         executable="ekf",
         name="ekf_slam_node",
@@ -29,6 +29,6 @@ def generate_launch_description():
     return LaunchDescription(
         [
             aruco_launch,
-            ekf_node,
+            slam_node,
         ]
     )
