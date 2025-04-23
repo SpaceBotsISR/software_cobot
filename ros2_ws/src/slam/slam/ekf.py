@@ -34,7 +34,7 @@ class EkfSlamNode(Node):
 
         # Measurement noise
         self.R = (
-            np.diag([0.1, 0.1, 0.1, np.deg2rad(2), np.deg2rad(2), np.deg2rad(2)]) ** 2
+            np.diag([0.5, 0.5, 0.5, np.deg2rad(2), np.deg2rad(2), np.deg2rad(2)]) ** 2
         )
 
         # Process noise
