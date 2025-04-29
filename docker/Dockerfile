@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y \
     fonts-powerline \
     python3-colcon-common-extensions
 
+
 # Create user
 ARG USERNAME=space_cobot
 ARG UID=1000
