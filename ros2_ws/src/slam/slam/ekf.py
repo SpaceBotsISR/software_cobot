@@ -85,6 +85,8 @@ class EkfSlamNode(Node):
             return
         delta = curr - self.prev_odom
         delta[3:] = self._angle_wrap(delta[3:])
+        Rcw = R.from_euler("xyz", self.x[3:6]).as_matrix()
+        delta[:3] = Rcw @ delta[:3]
         self.prev_odom = curr
         self.x[:6] += delta
         self.P[:6, :6] += self.R
