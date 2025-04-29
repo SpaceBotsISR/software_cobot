@@ -32,11 +32,15 @@ class EkfSlamNode(Node):
         self.P = np.eye(6) * 1e-3  # Initial covariance
         self.landmarks = {}
 
-        # Measurement noise
-        self.R = (
-            np.diag([0.5, 0.5, 0.5, np.deg2rad(2), np.deg2rad(2), np.deg2rad(2)]) ** 2
-        )
-
+        odom_std = [
+            0.2,  # x translation std-dev (m)
+            0.2,  # y translation std-dev (m)
+            0.2,  # z translation std-dev (m)
+            np.deg2rad(6),  # roll std-dev (rad)
+            np.deg2rad(6),  # pitch std-dev (rad)
+            np.deg2rad(6),  # yaw std-dev (rad)
+        ]
+        self.R = np.diag(odom_std) ** 2
         # Process noise
         self.Q = np.eye(3) * 0.01**2
 
@@ -62,7 +66,7 @@ class EkfSlamNode(Node):
         )
 
         # Timer for fixed-rate publishing
-        self.publish_timer = self.create_timer(0.03, self.timer_callback)
+        self.publish_timer = self.create_timer(0.1, self.timer_callback)
 
     def odom_callback(self, msg: PoseStamped):
         # Motion update: 6-DOF delta

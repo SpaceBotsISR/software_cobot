@@ -39,7 +39,9 @@ RUN apt-get update && apt-get install -y \
     wget \
     sudo \
     python3-venv \
+    python3-pip \
     fonts-powerline \
+    clang \
     python3-colcon-common-extensions
 
 
@@ -61,15 +63,16 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
     chown -R $USERNAME:$USERNAME /home/$USERNAME/.oh-my-zsh /home/$USERNAME/.zshrc
 
 # Create Python venv and install packages
-RUN python3 -m venv ~/venv && \
-    ~/venv/bin/pip install --upgrade pip && \
-    ~/venv/bin/pip install \
+USER root
+RUN python3 -m pip install --upgrade pip && \
+    pip3 install \
     numpy \
     opencv-python \
     scipy \
     catkin_pkg \
     lark \
     "empy<4.0"
+USER $USERNAME
 
 ENV PATH="/home/$USERNAME/venv/bin:$PATH"
 
