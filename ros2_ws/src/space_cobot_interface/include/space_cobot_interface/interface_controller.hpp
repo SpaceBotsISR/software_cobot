@@ -21,6 +21,7 @@
 #include <thread>
 
 #include <mavros_msgs/msg/rc_in.hpp>
+#include <std_msgs/msg/bool.hpp>
 
 using std::placeholders::_1;
 
@@ -62,6 +63,16 @@ private:
 
     // Function to get interface state with 100ms timeout
     unsigned int get_state(std::chrono::milliseconds timeout = std::chrono::milliseconds(100));
+    rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr kill_switch_sub;
+    rclcpp::TimerBase::SharedPtr kill_switch_timer;
+
+
+    void kill_switch_callback(const std_msgs::msg::Bool::SharedPtr msg);
+    void kill_switch_timer_callback();
+    bool kill_switch = true;
+    rclcpp::Time last_kill_switch_time;
+
+
 };
 
 #endif

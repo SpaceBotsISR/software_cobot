@@ -38,7 +38,6 @@
 #include <tf2/LinearMath/Scalar.h>
 
 #include <sensor_msgs/msg/imu.hpp>
-#include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 

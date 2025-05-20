@@ -4,7 +4,7 @@
 InterfaceController::InterfaceController() : Node("interface_controller")
 {
     RCLCPP_INFO(this->get_logger(), "Interface Controller Node Started");
-    rc_subscriber = this->create_subscription<mavros_msgs::msg::RCIn>("/mavros/rc/in", 10, std::bind(&InterfaceController::rc_callback, this, _1));
+    kill_switch_sub = this->create_subscription<std_msgs::msg::Bool>("/key_pressed_topic", 10, std::bind(&InterfaceController::kill_switch_callback, this, _1));
 
     // Convert to ros2 param and get from launch file instead
     std::string get_state_srv_name = "/interface/interface_slave/get_state";
@@ -16,15 +16,13 @@ InterfaceController::InterfaceController() : Node("interface_controller")
    // this->get_state(std::chrono::seconds(3));
     this->change_state(lifecycle_msgs::msg::Transition::TRANSITION_CONFIGURE, std::chrono::seconds(3));
     this->interface_already_running = false;
+
+    this->kill_switch_timer = this->create_wall_timer(
+        std::chrono::milliseconds(50), 
+        std::bind(&InterfaceController::kill_switch_timer_callback, this)
+    );
+    this->last_kill_switch_time = this->now();
     
- //  spin_thread_ = std::make_shared<std::thread>([this]() { rclcpp::spin(this->get_node_base_interface()); });
- 
-//    this-> spin_thread = std::thread(&InterfaceController::spin_node, this);
-//
-//    this->spin_timer  = this->create_wall_timer(
-//            std::chrono::milliseconds(10),
-//            std::bind(&InterfaceController::spin_node, this));
-//
     RCLCPP_INFO(get_logger(), "contructor_finished");
 }
 
@@ -33,10 +31,11 @@ InterfaceController::~InterfaceController()
     RCLCPP_INFO(this->get_logger(), "Interface Controller Node Destroyed");
 }
 
-void InterfaceController::spin_node() {
 
+void InterfaceController::kill_switch_callback(const std_msgs::msg::Bool::SharedPtr msg) {
+    this->last_kill_switch_time = this->now();
+    return;
 }
-
 
 template <typename FutureT, typename WaitTimeT>
 std::future_status
@@ -60,60 +59,33 @@ wait_for_result(
     return status;
 }
 
-void InterfaceController::rc_callback(const mavros_msgs::msg::RCIn::SharedPtr msg)
-{
-    bool kill_node = (msg->channels[kill_switch_channel] == kill_switch_action_value);
-    RCLCPP_INFO(get_logger(), "rc_callback");
+void InterfaceController::change_state_callback(const rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedFuture future) {
+    RCLCPP_INFO(get_logger(), "Inside change state callback");
+}
 
-    // Kill switch pressed
-    if (kill_node)
-    {
-        // If interface is running, stop it
-        if (interface_already_running)
-        {
-            RCLCPP_WARN(this->get_logger(), "Kill Switch Pressed, Stopping Interface");
+void InterfaceController::kill_switch_timer_callback() {
+    if (this->now() - this->last_kill_switch_time > rclcpp::Duration(std::chrono::milliseconds(100))){
+        // Kill switch is no longer being pressed ->  Kill the motors and disarm
+        if (interface_already_running) {
+            RCLCPP_WARN(this->get_logger(), "Kill Switch Released, stopping robot and motors");
             change_state(lifecycle_msgs::msg::Transition::TRANSITION_DEACTIVATE);
             node_restart = false;
             interface_already_running = false;
-            restart_switch_value = msg->channels[restart_switch_channel]; 
         }
-
-    }
-    else
-    {
-        if (first_start)
-        {
-            change_state(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE);
+    } else {
+        if (interface_already_running) {
+            return;
+        } 
+        
+        if (first_start) {
             first_start = false;
             interface_already_running = true;
-
         }
-        // Restart switch was flicked from last message to this one, we can not start
-
-
-        // Kill switch is not pressed and code is running
-        if (interface_already_running)
-        {
-            return;
-        }
-
-        node_restart =  restart_switch_value != msg->channels[restart_switch_channel];
-
-        // Interface is not running, kill switch is not pressed, but restart switch was not flicked yet
-        if (!node_restart)
-        {
-            return;
-        }
-        interface_already_running =  true;
-
-        RCLCPP_WARN(this->get_logger(), "Restart Switch Flicked, Starting Interface");
-        // Interface is not running, kill switch is not pressed, restart switch was flicked
         change_state(lifecycle_msgs::msg::Transition::TRANSITION_ACTIVATE);
+        interface_already_running = true;
+        RCLCPP_WARN(this->get_logger(), "Kill Switch Pressed, starting robot and motors");
     }
-}
-
-void InterfaceController::change_state_callback(const rclcpp::Client<lifecycle_msgs::srv::ChangeState>::SharedFuture future) {
-    RCLCPP_INFO(get_logger(), "Inside change state callback");
+    return;
 }
 
 bool InterfaceController::change_state(std::uint8_t transition, std::chrono::milliseconds timeout)
