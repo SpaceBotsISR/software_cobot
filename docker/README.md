@@ -1,10 +1,8 @@
-### ✅ `README.md`
-
-# 🧠 ROS 2 Humble Docker Environment – space_cobot
+# ROS 2 Humble Docker Environment – space_cobot
 
 This container provides a full-featured ROS 2 Humble development environment with GPU, X11 forwarding, zsh, and Python scientific tools — all under a user called `space_cobot`.
 
-## 🔧 Setup
+## Setup
 
 1. Make sure you have the following installed on your host:
 
@@ -59,19 +57,19 @@ sudo systemctl restart docker
 
 ---
 
-## 🛠️ Build the Container
+## Build the Container
 
 ```bash
 docker compose up -d
 ```
 
-## 🏁 Start the Container
+## Start the Container
 
 ```bash
 docker compose start
 ```
 
-## 🧵 Open Terminals
+## Open Terminals
 
 ```bash
 docker exec -it space_cobot_container zsh
@@ -81,26 +79,26 @@ This drops you into a new shell inside the same running container.
 
 ---
 
-### ✅ Helpful Container Aliases
+### Helpful Container Aliases
 
 | Command | What it does                                       |
 | ------- | -------------------------------------------------- |
 | `rs`    | Sources your ROS 2 workspace (`install/setup.zsh`) |
 | `ws`    | Goes to the ros2 workspace (`~/host_ws/`)          |
 
-## 🔚 Stop the Container
+## Stop the Container
 
 ```bash
 docker compose down
 ```
 
-## 🗑️ Remove the Container and Image
+## Remove the Container and Image
 
 ```bash
 docker compose down --rmi all
 ```
 
-## ⬇️ Install Packages inside the container
+## Install Packages inside the container
 
 ```bash
 apt-get update
