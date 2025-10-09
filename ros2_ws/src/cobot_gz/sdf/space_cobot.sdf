@@ -2,6 +2,7 @@
     <model name='space_cobot'>
         <pose>0 0 0 0 0 0</pose>
         <static>false</static>
+
         <link name='body'>
             <inertial>
                 <mass>5.2</mass>
@@ -15,6 +16,7 @@
                 </inertia>
             </inertial>
 
+            <!-- Visual mesh -->
             <visual name='mesh_visual'>
                 <geometry>
                     <mesh>
@@ -23,7 +25,8 @@
                     </mesh>
                 </geometry>
             </visual>
-            <!-- Simple collision kept cylindrical for stable contacts -->
+
+            <!-- Collision geometry -->
             <collision name='collision'>
                 <geometry>
                     <cylinder>
@@ -33,6 +36,7 @@
                 </geometry>
             </collision>
 
+            <!-- Depth camera sensor -->
             <sensor name='depth_camera' type='depth'>
                 <pose>0.36 0 0.13 0 0 0</pose>
                 <update_rate>30</update_rate>
@@ -55,6 +59,29 @@
                 </camera>
                 <always_on>1</always_on>
                 <visualize>1</visualize>
+            </sensor>
+
+            <!-- IMU sensor -->
+            <sensor name='imu_sensor' type='imu'>
+                <pose>0 0 0 0 0 0</pose>
+                <update_rate>100</update_rate>
+                <always_on>1</always_on>
+                <visualize>false</visualize>
+
+                <imu>
+                    <angular_velocity>
+                        <noise type='gaussian'>
+                            <mean>0.0</mean>
+                            <stddev>0.0002</stddev>
+                        </noise>
+                    </angular_velocity>
+                    <linear_acceleration>
+                        <noise type='gaussian'>
+                            <mean>0.0</mean>
+                            <stddev>0.001</stddev>
+                        </noise>
+                    </linear_acceleration>
+                </imu>
             </sensor>
 
         </link>

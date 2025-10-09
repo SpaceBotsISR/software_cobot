@@ -34,7 +34,7 @@
             </camera>
         </gui>
 
-        <gravity>0 0 -1</gravity>
+        <gravity>0 0 0</gravity>
 
         <light type="directional" name="sun">
             <cast_shadows>true</cast_shadows>
