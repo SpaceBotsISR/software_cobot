@@ -1,0 +1,80 @@
+<sdf version='1.6'>
+    <world name='default'>
+        <plugin
+            filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics">
+        </plugin>
+        <plugin
+            filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands">
+        </plugin>
+        <plugin
+            filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster">
+        </plugin>
+
+        <physics name='default_physics' default='1' type='ode'>
+            <max_step_size>0.001</max_step_size>
+            <real_time_factor>1</real_time_factor>
+            <real_time_update_rate>125</real_time_update_rate>
+        </physics>
+
+        <scene>
+            <ambient>1 1 1 1</ambient>
+            <background>0 0 0 1</background>
+            <grid>0</grid>
+            <shadows>0</shadows>
+        </scene>
+
+        <gui fullscreen='0'>
+            <camera name='user_camera'>
+                <pose>11.6631 -11.7128 3.6436 3.13991 -0.371464 2.07968</pose>
+                <view_controller>fps</view_controller>
+                <projection_type>perspective</projection_type>
+            </camera>
+        </gui>
+
+        <gravity>0 0 -1</gravity>
+
+        <light type="directional" name="sun">
+            <cast_shadows>true</cast_shadows>
+            <pose>0 0 10 0 0 0</pose>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+            <direction>-0.5 0.1 -0.9</direction>
+        </light>
+
+        <!-- Include space_cobot model -->
+        <include>
+            <uri>space_cobot.sdf</uri>
+            <name>space_cobot</name>
+            <pose>0 0 1 0 0 0</pose>
+        </include>
+
+        <model name="ground_plane">
+            <static>true</static>
+            <link name="link">
+                <collision name="collision">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 1</normal>
+                        </plane>
+                    </geometry>
+                </collision>
+                <visual name="visual">
+                    <geometry>
+                        <plane>
+                            <normal>0 0 1</normal>
+                            <size>100 100</size>
+                        </plane>
+                    </geometry>
+                    <material>
+                        <ambient>0.2 0.2 0.2 1</ambient>
+                        <diffuse>0.2 0.2 0.2 1</diffuse>
+                    </material>
+                </visual>
+            </link>
+        </model>
+
+    </world>
+</sdf>

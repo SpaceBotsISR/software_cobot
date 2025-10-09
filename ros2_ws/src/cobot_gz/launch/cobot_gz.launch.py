@@ -1,3 +1,5 @@
+import os
+
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
@@ -34,16 +36,25 @@ def generate_launch_description():
     ]
 
     world_path = PathJoinSubstitution(
-        [cobot_gz_path, "urdf", LaunchConfiguration("world_sdf_file")]
+        [cobot_gz_path, "sdf", LaunchConfiguration("world_sdf_file")]
     )
 
     gz_launch = PathJoinSubstitution([ros_gz_sim_path, "launch", "gz_sim.launch.py"])
+
+    resource_path = os.pathsep.join(
+        [
+            cobot_gz_path,
+            os.path.join(cobot_gz_path, "sdf"),
+            os.path.join(cobot_gz_path, "meshes"),
+        ]
+    )
 
     return LaunchDescription(
         [
             *args,
             SetEnvironmentVariable(
-                "GZ_SIM_RESOURCE_PATH", PathJoinSubstitution([cobot_gz_path, "meshes"])
+                "GZ_SIM_RESOURCE_PATH",
+                resource_path,
             ),
             SetEnvironmentVariable(
                 "GZ_SIM_PLUGIN_PATH", PathJoinSubstitution([cobot_gz_path, "plugins"])

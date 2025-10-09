@@ -1,0 +1,62 @@
+<sdf version='1.6'>
+    <model name='space_cobot'>
+        <pose>0 0 0 0 0 0</pose>
+        <static>false</static>
+        <link name='body'>
+            <inertial>
+                <mass>5.2</mass>
+                <inertia>
+                    <ixx>0.2658</ixx>
+                    <iyy>0.2658</iyy>
+                    <izz>0.5265</izz>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyz>0</iyz>
+                </inertia>
+            </inertial>
+
+            <visual name='mesh_visual'>
+                <geometry>
+                    <mesh>
+                        <uri>../meshes/space_cobot.dae</uri>
+                        <scale>1 1 1</scale>
+                    </mesh>
+                </geometry>
+            </visual>
+            <!-- Simple collision kept cylindrical for stable contacts -->
+            <collision name='collision'>
+                <geometry>
+                    <cylinder>
+                        <radius>0.45</radius>
+                        <length>0.12</length>
+                    </cylinder>
+                </geometry>
+            </collision>
+
+            <sensor name='depth_camera' type='depth'>
+                <pose>0.36 0 0.13 0 0 0</pose>
+                <update_rate>30</update_rate>
+                <camera>
+                    <horizontal_fov>1.047</horizontal_fov>
+                    <image>
+                        <width>640</width>
+                        <height>480</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>0.1</near>
+                        <far>50</far>
+                    </clip>
+                    <noise>
+                        <type>gaussian</type>
+                        <mean>0</mean>
+                        <stddev>0.007</stddev>
+                    </noise>
+                </camera>
+                <always_on>1</always_on>
+                <visualize>1</visualize>
+            </sensor>
+
+        </link>
+    </model>
+</sdf>

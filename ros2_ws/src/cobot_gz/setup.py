@@ -11,12 +11,10 @@ setup(
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
         ("share/" + package_name, ["package.xml"]),
-        # Install launch files
         (os.path.join("share", package_name, "launch"), glob("launch/*.launch.py")),
-        # Install config, meshes, and URDF folders
         (os.path.join("share", package_name, "config"), glob("config/*")),
         (os.path.join("share", package_name, "meshes"), glob("meshes/*")),
-        (os.path.join("share", package_name, "urdf"), glob("urdf/*")),
+        (os.path.join("share", package_name, "sdf"), glob("sdf/*")),
     ],
     install_requires=["setuptools"],
     zip_safe=True,
