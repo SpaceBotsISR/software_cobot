@@ -66,6 +66,16 @@ def generate_launch_description():
             os.path.join(cobot_gz_path, "meshes"),
         ]
     )
+    runtime_dir = os.path.join("/tmp", f"runtime-{os.getuid()}")
+
+    # Ensure Gazebo's Qt dependencies have a writable runtime directory.
+    try:
+        os.makedirs(runtime_dir, exist_ok=True)
+        os.chmod(runtime_dir, 0o700)
+    except OSError as err:
+        raise RuntimeError(
+            f"Failed to prepare XDG runtime directory at '{runtime_dir}': {err}"
+        ) from err
 
     # --- Return Launch Description ---
     return LaunchDescription(
@@ -76,6 +86,7 @@ def generate_launch_description():
             SetEnvironmentVariable(
                 "GZ_SIM_PLUGIN_PATH", PathJoinSubstitution([cobot_gz_path, "plugins"])
             ),
+            SetEnvironmentVariable("XDG_RUNTIME_DIR", runtime_dir),
             # === Launch Gazebo ===
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(gz_launch),
