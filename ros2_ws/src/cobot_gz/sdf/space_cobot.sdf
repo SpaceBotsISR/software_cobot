@@ -38,6 +38,7 @@
 
             <!-- IMU sensor on body -->
             <sensor name='imu_sensor' type='imu'>
+                <topic>/imu/data</topic>
                 <pose>0 0 0 0 0 0</pose>
                 <update_rate>100</update_rate>
                 <always_on>1</always_on>
@@ -76,7 +77,8 @@
             </inertial>
 
             <!-- Depth camera sensor -->
-            <sensor name='depth_camera' type='depth'>
+            <sensor name='depth_camera' type='rgbd_camera'>
+                <topic>/main_camera</topic>
                 <pose>0 0 0 0 0 0</pose>
                 <update_rate>30</update_rate>
                 <always_on>1</always_on>

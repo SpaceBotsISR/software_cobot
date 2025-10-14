@@ -25,10 +25,11 @@ DEFAULT_CREATE_CONTAINER = True
 
 # --- Bridge topics ---
 BRIDGE_TOPICS = [
-    "/imu/data@sensor_msgs/msg/Imu@gz.msgs.IMU",
-    "/depth_camera/image@sensor_msgs/msg/Image@gz.msgs.Image",
-    "/depth_camera/camera_info@sensor_msgs/msg/CameraInfo@gz.msgs.CameraInfo",
-    "/depth_camera/depth_image@sensor_msgs/msg/Image@gz.msgs.Image",
+    "/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU",
+    "/main_camera/image@sensor_msgs/msg/Image[gz.msgs.Image",
+    "/main_camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
+    "/main_camera/depth_image@sensor_msgs/msg/Image[gz.msgs.Image",
+    "/main_camera/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
 ]
 
 
