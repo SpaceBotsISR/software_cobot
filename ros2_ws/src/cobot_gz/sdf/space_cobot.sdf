@@ -3,12 +3,13 @@
         <pose>0 0 0 0 0 0</pose>
         <static>false</static>
 
+        <!-- === Main body === -->
         <link name='body'>
             <inertial>
                 <mass>5.2</mass>
                 <inertia>
-                    <ixx>0.2658</ixx>
-                    <iyy>0.2658</iyy>
+                    <ixx>0.26949</ixx>
+                    <iyy>0.26949</iyy>
                     <izz>0.5265</izz>
                     <ixy>0</ixy>
                     <ixz>0</ixz>
@@ -16,7 +17,6 @@
                 </inertia>
             </inertial>
 
-            <!-- Visual mesh -->
             <visual name='mesh_visual'>
                 <geometry>
                     <mesh>
@@ -26,7 +26,7 @@
                 </geometry>
             </visual>
 
-            <!-- Collision geometry -->
+            <!-- Collision geometry matches the cylinder mass/inertia assumptions -->
             <collision name='collision'>
                 <geometry>
                     <cylinder>
@@ -36,38 +36,12 @@
                 </geometry>
             </collision>
 
-            <!-- Depth camera sensor -->
-            <sensor name='depth_camera' type='depth'>
-                <pose>0.36 0 0.13 0 0 0</pose>
-                <update_rate>30</update_rate>
-                <camera>
-                    <horizontal_fov>1.047</horizontal_fov>
-                    <image>
-                        <width>640</width>
-                        <height>480</height>
-                        <format>R8G8B8</format>
-                    </image>
-                    <clip>
-                        <near>0.1</near>
-                        <far>50</far>
-                    </clip>
-                    <noise>
-                        <type>gaussian</type>
-                        <mean>0</mean>
-                        <stddev>0.007</stddev>
-                    </noise>
-                </camera>
-                <always_on>1</always_on>
-                <visualize>1</visualize>
-            </sensor>
-
-            <!-- IMU sensor -->
+            <!-- IMU sensor on body -->
             <sensor name='imu_sensor' type='imu'>
                 <pose>0 0 0 0 0 0</pose>
                 <update_rate>100</update_rate>
                 <always_on>1</always_on>
                 <visualize>false</visualize>
-
                 <imu>
                     <angular_velocity>
                         <noise type='gaussian'>
@@ -83,7 +57,53 @@
                     </linear_acceleration>
                 </imu>
             </sensor>
-
         </link>
+
+        <!-- === Depth camera === -->
+        <link name='depth_cam_link'>
+            <pose>0.36 0 0.13 0 0 0</pose>
+
+            <inertial>
+                <mass>0.01</mass>
+                <inertia>
+                    <ixx>1e-6</ixx>
+                    <iyy>1e-6</iyy>
+                    <izz>1e-6</izz>
+                    <ixy>0</ixy>
+                    <ixz>0</ixz>
+                    <iyz>0</iyz>
+                </inertia>
+            </inertial>
+
+            <!-- Depth camera sensor -->
+            <sensor name='depth_camera' type='depth'>
+                <pose>0 0 0 0 0 0</pose>
+                <update_rate>30</update_rate>
+                <always_on>1</always_on>
+                <visualize>1</visualize>
+                <camera>
+                    <horizontal_fov>1.047</horizontal_fov>
+                    <image>
+                        <width>640</width>
+                        <height>480</height>
+                    </image>
+                    <clip>
+                        <near>0.1</near>
+                        <far>50</far>
+                    </clip>
+                    <noise>
+                        <type>gaussian</type>
+                        <mean>0</mean>
+                        <stddev>0.007</stddev>
+                    </noise>
+                </camera>
+            </sensor>
+        </link>
+
+        <joint name='body_to_depth_cam' type='fixed'>
+            <parent>body</parent>
+            <child>depth_cam_link</child>
+        </joint>
+
     </model>
 </sdf>
