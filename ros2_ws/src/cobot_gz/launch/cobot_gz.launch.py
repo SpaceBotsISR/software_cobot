@@ -19,30 +19,23 @@ from launch_ros.actions import Node
 # === Default Values ===
 DEFAULT_WORLD = "world.sdf"
 DEFAULT_BRIDGE = "ros_gz_bridge"
-DEFAULT_CONFIG = ""
 DEFAULT_USE_COMPOSITION = True
 DEFAULT_CREATE_CONTAINER = True
-
-# --- Bridge topics ---
-BRIDGE_TOPICS = [
-    "/imu/data@sensor_msgs/msg/Imu[gz.msgs.IMU",
-    "/main_camera/image@sensor_msgs/msg/Image[gz.msgs.Image",
-    "/main_camera/camera_info@sensor_msgs/msg/CameraInfo[gz.msgs.CameraInfo",
-    "/main_camera/depth_image@sensor_msgs/msg/Image[gz.msgs.Image",
-    "/main_camera/points@sensor_msgs/msg/PointCloud2[gz.msgs.PointCloudPacked",
-]
 
 
 def generate_launch_description():
     # --- Paths ---
     cobot_gz_path = get_package_share_directory("cobot_gz")
     ros_gz_sim_path = get_package_share_directory("ros_gz_sim")
+    default_bridge_config = PathJoinSubstitution(
+        [cobot_gz_path, "config", "ros_gz_bridge.yaml"]
+    )
 
     # --- Launch Arguments ---
     args = [
         DeclareLaunchArgument("world_sdf_file", default_value=DEFAULT_WORLD),
         DeclareLaunchArgument("bridge_name", default_value=DEFAULT_BRIDGE),
-        DeclareLaunchArgument("config_file", default_value=DEFAULT_CONFIG),
+        DeclareLaunchArgument("config_file", default_value=default_bridge_config),
         DeclareLaunchArgument(
             "use_composition", default_value=str(DEFAULT_USE_COMPOSITION)
         ),
@@ -102,7 +95,9 @@ def generate_launch_description():
                 package=LaunchConfiguration("bridge_name"),
                 executable="parameter_bridge",
                 name="sensor_bridge",
-                arguments=BRIDGE_TOPICS,
+                parameters=[
+                    {"config_file": LaunchConfiguration("config_file")},
+                ],
                 output="screen",
             ),
         ]
