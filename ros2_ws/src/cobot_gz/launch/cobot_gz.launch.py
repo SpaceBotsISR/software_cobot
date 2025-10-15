@@ -100,5 +100,11 @@ def generate_launch_description():
                 ],
                 output="screen",
             ),
+            Node(
+                package="cobot_gz",
+                executable="space_cobot_state_bridge",
+                name="space_cobot_state_bridge",
+                output="screen",
+            ),
         ]
     )

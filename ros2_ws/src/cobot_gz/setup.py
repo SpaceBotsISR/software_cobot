@@ -28,6 +28,8 @@ setup(
         ],
     },
     entry_points={
-        "console_scripts": [],
+        "console_scripts": [
+            "space_cobot_state_bridge = cobot_gz.state_bridge:main",
+        ],
     },
 )

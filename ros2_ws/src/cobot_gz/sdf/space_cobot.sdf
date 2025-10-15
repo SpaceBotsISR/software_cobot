@@ -18,6 +18,7 @@
             </inertial>
 
             <visual name='mesh_visual'>
+                <pose>0 0 0 0 0 3.14159</pose>
                 <geometry>
                     <mesh>
                         <uri>../meshes/space_cobot.dae</uri>
@@ -106,6 +107,22 @@
             <parent>body</parent>
             <child>depth_cam_link</child>
         </joint>
+
+        <plugin
+            filename="ignition-gazebo-pose-publisher-system"
+            name="gz::sim::systems::PosePublisher">
+            <publish_model_pose>true</publish_model_pose>
+            <publish_link_pose>false</publish_link_pose>
+            <publish_collision_pose>false</publish_collision_pose>
+            <publish_visual_pose>false</publish_visual_pose>
+            <frame_id>world</frame_id>
+        </plugin>
+
+        <plugin
+            filename="ignition-gazebo-velocity-control-system"
+            name="gz::sim::systems::VelocityControl">
+            <link_name>body</link_name>
+        </plugin>
 
     </model>
 </sdf>
