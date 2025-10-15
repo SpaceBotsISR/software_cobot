@@ -15,7 +15,6 @@ from launch.substitutions import (
 )
 from launch_ros.actions import Node
 
-
 # === Default Values ===
 DEFAULT_WORLD = "world.sdf"
 DEFAULT_BRIDGE = "ros_gz_bridge"
@@ -44,7 +43,7 @@ def generate_launch_description():
         ),
     ]
 
-    # --- Resolve world path ---
+    # --- Resolve world path inside the package ---
     world_path = PathJoinSubstitution(
         [cobot_gz_path, "sdf", LaunchConfiguration("world_sdf_file")]
     )
@@ -85,19 +84,16 @@ def generate_launch_description():
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(gz_launch),
                 launch_arguments={
-                    # Compose lazy so final shell command receives "-r <path>"
                     "gz_args": [TextSubstitution(text="-r "), world_path],
                     "on_exit_shutdown": "True",
                 }.items(),
             ),
-            # === Bridge sensors ===
+            # === Bridge sensors & state ===
             Node(
                 package=LaunchConfiguration("bridge_name"),
                 executable="parameter_bridge",
                 name="sensor_bridge",
-                parameters=[
-                    {"config_file": LaunchConfiguration("config_file")},
-                ],
+                parameters=[{"config_file": LaunchConfiguration("config_file")}],
                 output="screen",
             ),
             Node(

@@ -39,3 +39,15 @@
   gz_topic_name: "/model/space_cobot/cmd_vel"
   gz_type_name: "gz.msgs.Twist"
   direction: ROS_TO_GZ
+
+- ros_topic_name: "/space_cobot/odom"
+  ros_type_name: "nav_msgs/msg/Odometry"
+  gz_topic_name: "/model/space_cobot/odometry"
+  gz_type_name: "gz.msgs.Odometry"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/tf"
+  ros_type_name: "tf2_msgs/msg/TFMessage"
+  gz_topic_name: "/world/default/pose/info"
+  gz_type_name: "gz.msgs.Pose_V"
+  direction: GZ_TO_ROS
