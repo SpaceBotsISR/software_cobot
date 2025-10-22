@@ -51,6 +51,9 @@
             <name>space_cobot</name>
             <pose>0 0 1 0 0 0</pose>
         </include>
+        <include>
+            <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/Warehouse</uri>
+        </include>
 
         <!-- Ground plane (static) -->
         <model name="ground_plane">
