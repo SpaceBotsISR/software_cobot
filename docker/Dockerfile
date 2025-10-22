@@ -1,34 +1,27 @@
-FROM nvidia/cuda:12.6.0-base-ubuntu22.04
-#! ARM: nvidia/cuda:12.6.0-base-ubuntu22.04-arm64
+FROM ros:humble-ros-base
 
-ENV DEBIAN_FRONTEND=noninteractive
+ENV DEBIAN_FRONTEND=noninteractive \
+    LANG=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8 \
+    QT_X11_NO_MITSHM=1
 
-# --------------------
-# Locale
-# --------------------
-RUN apt-get update && apt-get install -y locales \
+# Base tools, OpenGL libs, locale
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    locales ca-certificates curl wget gnupg2 lsb-release \
+    build-essential git vim net-tools sudo zsh python3-pip python3-venv \
+    mesa-utils libgl1 libgl1-mesa-dri libglu1-mesa \
     && locale-gen en_US en_US.UTF-8 \
-    && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8
-ENV LANG=en_US.UTF-8
-ENV LC_ALL=en_US.UTF-8
+    && update-locale LC_ALL=en_US.UTF-8 LANG=en_US.UTF-8 \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y nvidia-utils-575
+# Gazebo Garden repository
+RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg lsb-release \
+    && wget -qO /usr/share/keyrings/gazebo-archive-keyring.gpg https://packages.osrfoundation.org/gazebo.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gazebo-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" \
+    > /etc/apt/sources.list.d/gazebo-stable.list
 
-# --------------------
-# Add ROS 2 apt repository (modern keyring method)
-# --------------------
-RUN apt-get update && apt-get install -y curl gnupg2 lsb-release \
-    && curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
-    -o /usr/share/keyrings/ros-archive-keyring.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] \
-    http://packages.ros.org/ros2/ubuntu $(lsb_release -cs) main" \
-    > /etc/apt/sources.list.d/ros2.list
-
-# --------------------
-# Install ROS 2 + dependencies
-# --------------------
+# ROS extras, ros_gz, Gazebo Garden
 RUN apt-get update && apt-get install -y \
-    ros-humble-ros-base \
     ros-humble-geometry-msgs \
     ros-humble-mavros ros-humble-mavros-msgs \
     ros-humble-rviz2 ros-humble-rviz-common \
@@ -36,45 +29,32 @@ RUN apt-get update && apt-get install -y \
     ros-humble-rviz-rendering ros-humble-nav2-rviz-plugins \
     ros-humble-foxglove-bridge ros-humble-rosbag2-storage-mcap \
     ros-humble-angles ros-humble-vision-opencv ros-humble-cv-bridge \
-    git ccache net-tools vim libopencv-dev \
-    zsh curl wget sudo python3-venv python3-pip \
-    fonts-powerline clang python3-colcon-common-extensions
+    ros-humble-ros-gz \
+    gz-garden \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN sudo apt-get update && sudo apt-get install -y ros-humble-ros-gz
+# Python packages
+RUN python3 -m pip install --no-cache-dir --upgrade pip \
+    && pip3 install --no-cache-dir numpy opencv-python scipy catkin_pkg lark "empy<4.0"
 
-# --------------------
-# Create user
-# --------------------
+# Non-root user
 ARG USERNAME=space_cobot
 ARG UID=1000
-RUN useradd -m -u $UID -s /bin/zsh $USERNAME \
-    && echo "$USERNAME ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+RUN useradd -m -u ${UID} -s /bin/zsh ${USERNAME} \
+    && usermod -aG sudo ${USERNAME} \
+    && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-USER $USERNAME
-WORKDIR /home/$USERNAME
+USER ${USERNAME}
+WORKDIR /home/${USERNAME}
 
-# --------------------
-# Oh My Zsh setup
-# --------------------
+# Zsh + plugins
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended \
-    && git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-/home/$USERNAME/.oh-my-zsh/custom}/plugins/zsh-autosuggestions \
-    && git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-/home/$USERNAME/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting \
-    && sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' /home/$USERNAME/.zshrc \
-    && sed -i 's/ZSH_THEME=".*"/ZSH_THEME="agnoster"/' /home/$USERNAME/.zshrc \
-    && chown -R $USERNAME:$USERNAME /home/$USERNAME/.oh-my-zsh /home/$USERNAME/.zshrc
+    && git clone https://github.com/zsh-users/zsh-autosuggestions ${ZSH_CUSTOM:-/home/${USERNAME}/.oh-my-zsh/custom}/plugins/zsh-autosuggestions \
+    && git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ${ZSH_CUSTOM:-/home/${USERNAME}/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting \
+    && sed -i 's/plugins=(git)/plugins=(git zsh-autosuggestions zsh-syntax-highlighting)/' /home/${USERNAME}/.zshrc \
+    && sed -i 's/ZSH_THEME=".*"/ZSH_THEME="agnoster"/' /home/${USERNAME}/.zshrc
 
-# --------------------
-# Python setup (system-wide, no venv)
-# --------------------
-USER root
-RUN python3 -m pip install --upgrade pip \
-    && pip3 install \
-    numpy opencv-python scipy catkin_pkg lark "empy<4.0"
-
-# --------------------
-# Shell configuration for ROS
-# --------------------
-USER $USERNAME
-RUN echo "source /opt/ros/humble/setup.zsh" >> /home/$USERNAME/.zshrc \
-    && echo "alias rs='source install/setup.zsh'" >> /home/$USERNAME/.zshrc \
-    && echo "alias ws='cd ~/software_cobot/ros2_ws && rs'" >> /home/$USERNAME/.zshrc
+# Shell setup
+RUN echo "source /opt/ros/humble/setup.zsh" >> /home/${USERNAME}/.zshrc \
+    && echo "alias rs='[ -f install/setup.zsh ] && source install/setup.zsh || echo \"No install/ yet\"'" >> /home/${USERNAME}/.zshrc \
+    && echo "alias ws=\"cd ~/software_cobot/ros2_ws && rs\"" >> /home/${USERNAME}/.zshrc

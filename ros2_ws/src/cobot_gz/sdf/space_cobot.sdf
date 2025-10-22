@@ -1,10 +1,25 @@
 <?xml version="1.0"?>
 <sdf version='1.6'>
     <model name='space_cobot'>
+        <plugin filename="ignition-gazebo-pose-publisher-system"
+            name="ignition::gazebo::systems::PosePublisher">
+            <publish_model_pose>true</publish_model_pose>
+            <publish_nested_model_pose>true</publish_nested_model_pose>
+            <update_frequency>50</update_frequency>
+            <frame_id>world</frame_id>
+        </plugin>
+
+        <plugin filename="ignition-gazebo-velocity-control-system"
+            name="ignition::gazebo::systems::VelocityControl">
+            <link_name>body</link_name>
+            <topic>/model/space_cobot/cmd_vel</topic>
+            <initial_linear>0 0 0</initial_linear>
+            <initial_angular>0 0 0</initial_angular>
+        </plugin>
+
         <pose>0 0 0 0 0 0</pose>
         <static>false</static>
 
-        <!-- === Main body === -->
         <link name='body'>
             <inertial>
                 <mass>5.2</mass>
@@ -37,7 +52,6 @@
                 </geometry>
             </collision>
 
-            <!-- IMU sensor on body -->
             <sensor name='imu_sensor' type='imu'>
                 <topic>/imu/data</topic>
                 <pose>0 0 0 0 0 0</pose>
@@ -61,7 +75,6 @@
             </sensor>
         </link>
 
-        <!-- === Depth camera === -->
         <link name='depth_cam_link'>
             <pose>0.36 0 0.13 0 0 0</pose>
             <inertial>
@@ -77,7 +90,7 @@
             </inertial>
 
             <sensor name='depth_camera' type='rgbd_camera'>
-                <topic>/main_camera</topic> <!-- base topic -->
+                <topic>/main_camera</topic>
                 <pose>0 0 0 0 0 0</pose>
                 <update_rate>30</update_rate>
                 <always_on>1</always_on>
@@ -105,30 +118,5 @@
             <parent>body</parent>
             <child>depth_cam_link</child>
         </joint>
-
-        <!-- Pose publisher -->
-        <plugin filename="ignition-gazebo-pose-publisher-system"
-            name="ignition::gazebo::systems::PosePublisher">
-            <publish_model_pose>true</publish_model_pose>
-            <publish_nested_model_pose>true</publish_nested_model_pose>
-            <update_frequency>50</update_frequency>
-            <frame_id>world</frame_id>
-        </plugin>
-
-        <!-- Apply Twist commands from /model/space_cobot/cmd_vel -->
-        <plugin filename="ignition-gazebo-velocity-control-system"
-            name="ignition::gazebo::systems::VelocityControl">
-            <link_name>body</link_name>
-        </plugin>
-
-        <!-- Odometry (pose + twist) at /model/space_cobot/odometry -->
-        <plugin filename="ignition-gazebo-odometry-publisher-system"
-            name="ignition::gazebo::systems::OdometryPublisher">
-            <odom_frame>odom</odom_frame>
-            <robot_base_frame>space_cobot/body</robot_base_frame>
-            <odom_publish_frequency>50</odom_publish_frequency>
-            <!-- <odom_topic>/model/space_cobot/odometry</odom_topic> -->
-        </plugin>
-
     </model>
 </sdf>
