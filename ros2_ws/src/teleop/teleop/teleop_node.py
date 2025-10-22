@@ -18,6 +18,7 @@ from ament_index_python.packages import (
 from rclpy.node import Node
 from rosidl_runtime_py import convert
 from sensor_msgs.msg import Image, Imu
+from geometry_msgs.msg import PoseStamped
 import yaml
 import zmq
 
@@ -36,7 +37,17 @@ class TeleopBridge:
         message = json.dumps({"topic": topic, "data": payload})
         try:
             self._sock.send_string(message, flags=zmq.NOBLOCK)
-            print(f"Published to {topic} ({len(message)} bytes)")
+
+            if topic == "/space_cobot/pose":
+                t = payload.get("header", {})
+                # print stapm, x,y,z
+                stamp = t.get("stamp", {})
+                secs = stamp.get("sec", 0)
+                position = payload.get("pose", {}).get("position", {})
+                x = position.get("x", 0.0)
+                y = position.get("y", 0.0)
+                z = position.get("z", 0.0)
+                print(f"{secs}: ({x:.2f}, {y:.2f}, {z:.2f})")
         except zmq.Again:
             # Drop if downstream is not ready.
             pass
@@ -54,6 +65,7 @@ class TeleopNode(Node):
     # topic -> (message type, is_image)
     _BRIDGE_TOPICS: Dict[str, Tuple[type, bool]] = {
         "/imu/data": (Imu, False),
+        "/space_cobot/pose": (PoseStamped, False),
         "/main_camera/image": (Image, True),
     }
 

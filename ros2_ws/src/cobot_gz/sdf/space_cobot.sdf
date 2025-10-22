@@ -5,6 +5,7 @@
             name="ignition::gazebo::systems::PosePublisher">
             <publish_model_pose>true</publish_model_pose>
             <publish_nested_model_pose>true</publish_nested_model_pose>
+            <publish_link_pose>false</publish_link_pose>
             <update_frequency>50</update_frequency>
             <frame_id>world</frame_id>
         </plugin>
@@ -55,7 +56,7 @@
             <sensor name='imu_sensor' type='imu'>
                 <topic>/imu/data</topic>
                 <pose>0 0 0 0 0 0</pose>
-                <update_rate>100</update_rate>
+                <update_rate>60</update_rate>
                 <always_on>1</always_on>
                 <visualize>false</visualize>
                 <imu>
