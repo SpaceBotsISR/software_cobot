@@ -14,17 +14,19 @@
         <plugin filename="ignition-gazebo-imu-system" name="ignition::gazebo::systems::Imu" />
 
         <physics name='default_physics' default='1' type='ode'>
-            <max_step_size>0.001</max_step_size>
+            <max_step_size>0.01</max_step_size>
             <real_time_factor>1</real_time_factor>
             <real_time_update_rate>125</real_time_update_rate>
         </physics>
 
         <scene>
             <ambient>1 1 1 1</ambient>
-            <background>0 0 0 1</background>
+            <background>0 0 0</background>
             <grid>0</grid>
             <shadows>0</shadows>
         </scene>
+
+
 
         <gui fullscreen='0'>
             <camera name='user_camera'>
@@ -51,10 +53,19 @@
             <name>space_cobot</name>
             <pose>0 0 0 0 0 0</pose>
         </include>
+
+        <!-- International Space Station -->
         <include>
+            <uri>file://iss.sdf</uri>
+            <name>iss</name>
+            <pose>0 0 -5 0 0 0</pose>
+        </include>
+
+        <!-- <include>
             <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/Warehouse</uri>
             <name>Warehouse</name>
             <pose>0 0 -1 0 0 0</pose>
-        </include>
+        </include> -->
+        
     </world>
 </sdf>
