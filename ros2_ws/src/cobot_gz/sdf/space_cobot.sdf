@@ -79,7 +79,7 @@
         </link>
 
         <link name='lidar_link'>
-            <pose>0 0 0 0 0 0</pose>
+            <pose>0 0 0.13 0 0 0</pose>
             <inertial>
                 <mass>0.01</mass>
                 <inertia>
@@ -109,7 +109,7 @@
                         <vertical>
                             <samples>32</samples>
                             <resolution>1</resolution>
-                            <min_angle>-0.523599</min_angle>
+                            <min_angle>0</min_angle>
                             <max_angle>0.523599</max_angle>
                         </vertical>
                     </scan>
