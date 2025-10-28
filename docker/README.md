@@ -4,7 +4,7 @@ ROS 2 Humble container with GPU support, Gazebo, X11 forwarding, zsh, and Python
 
 ---
 
-## 🧩 Prerequisites (on host)
+## Prerequisites (on host)
 
 ### Docker & Compose
 
@@ -67,13 +67,14 @@ sudo apt update
 sudo apt install -y <package_name>
 ```
 
-## 🧹 Stop or Remove
+## Stop or Remove
 
+### Stop Container
 ```bash
-docker compose down         # stop
-docker compose down --rmi all  # remove image
+docker compose down
 ```
 
-```
-
+### Remove Container
+```bash
+docker compose down --rmi all
 ```
