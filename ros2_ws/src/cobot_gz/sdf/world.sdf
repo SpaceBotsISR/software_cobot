@@ -1,0 +1,71 @@
+<?xml version="1.0"?>
+<sdf version='1.6'>
+    <world name='default'>
+
+        <!-- Core systems (Ignition Fortress) -->
+        <plugin filename="ignition-gazebo-physics-system" name="ignition::gazebo::systems::Physics" />
+        <plugin filename="ignition-gazebo-user-commands-system"
+            name="ignition::gazebo::systems::UserCommands" />
+        <plugin filename="ignition-gazebo-scene-broadcaster-system"
+            name="ignition::gazebo::systems::SceneBroadcaster" />
+        <plugin filename="ignition-gazebo-sensors-system" name="ignition::gazebo::systems::Sensors">
+            <render_engine>ogre2</render_engine>
+        </plugin>
+        <plugin filename="ignition-gazebo-imu-system" name="ignition::gazebo::systems::Imu" />
+
+        <physics name='default_physics' default='1' type='ode'>
+            <max_step_size>0.01</max_step_size>
+            <real_time_factor>1</real_time_factor>
+            <real_time_update_rate>125</real_time_update_rate>
+        </physics>
+
+        <scene>
+            <ambient>1 1 1 1</ambient>
+            <background>0 0 0</background>
+            <grid>0</grid>
+            <shadows>0</shadows>
+        </scene>
+
+
+
+        <gui fullscreen='0'>
+            <camera name='user_camera'>
+                <pose>11.6631 -11.7128 3.6436 3.13991 -0.371464 2.07968</pose>
+                <view_controller>fps</view_controller>
+                <projection_type>perspective</projection_type>
+            </camera>
+        </gui>
+
+        <!-- 0-G world -->
+        <gravity>0 0 0</gravity>
+
+        <light type="directional" name="sun">
+            <cast_shadows>true</cast_shadows>
+            <pose>0 0 10 0 0 0</pose>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+            <direction>-0.5 0.1 -0.9</direction>
+        </light>
+
+        <!-- Space Cobot -->
+        <include>
+            <uri>file://space_cobot.sdf</uri>
+            <name>space_cobot</name>
+            <pose>0 0 0 0 0 0</pose>
+        </include>
+
+        <!-- International Space Station -->
+        <include>
+            <uri>file://iss.sdf</uri>
+            <name>iss</name>
+            <pose>0 0 -5 0 0 0</pose>
+        </include>
+
+        <!-- <include>
+            <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/Warehouse</uri>
+            <name>Warehouse</name>
+            <pose>0 0 -1 0 0 0</pose>
+        </include> -->
+        
+    </world>
+</sdf>

@@ -16,8 +16,8 @@ services:
     volumes:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ..:/home/space_cobot/software_cobot
-      - /dev:/dev  # access to USB and other devices
-      - /run/udev:/run/udev:ro  # udev support (optional but recommended for USB)
+      - /dev:/dev  
+      - /run/udev:/run/udev:ro  
     runtime: nvidia
     deploy:
       resources:
