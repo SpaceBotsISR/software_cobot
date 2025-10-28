@@ -9,6 +9,7 @@ import base64
 import json
 import os
 from functools import partial
+import time
 from typing import Any, Dict, Tuple
 
 import cv2
@@ -45,6 +46,7 @@ class TeleopBridge:
         self._image_sock.setsockopt(zmq.LINGER, 0)
         self._image_sock.setsockopt(zmq.SNDHWM, 3)
         self._image_sock.bind(image_endpoint)
+        self._last_publish_time: float | None = None
 
     def publish(
         self, topic: str, payload: Dict[str, Any], is_image: bool = False
@@ -53,6 +55,14 @@ class TeleopBridge:
         try:
             if is_image:
                 self._image_sock.send_string(message, flags=zmq.NOBLOCK)
+                now = time.monotonic()
+                dt = (
+                    now - self._last_publish_time
+                    if self._last_publish_time is not None
+                    else 0.0
+                )
+                self._last_publish_time = now
+                print(f"Sent image message on topic: {topic} (dt={dt:.3f}s)")
             else:
                 self._sensor_sock.send_string(message, flags=zmq.NOBLOCK)
         except zmq.Again:
@@ -106,6 +116,7 @@ class TeleopNode(Node):
 
         # ROS publishers for inbound commands
         self._cmd_vel_pub = self.create_publisher(Twist, "/space_cobot/cmd_vel", 10)
+        self._last_cmd_vel_time: float | None = None
 
         # ZMQ command intake (UI -> robot)
         self._cmd_ctx = zmq.Context.instance()
@@ -296,6 +307,15 @@ class TeleopNode(Node):
             if topic == "/space_cobot/cmd_vel":
                 twist = self._to_twist(data)
                 if twist is not None:
+                    now = time.monotonic()
+                    dt = (
+                        now - self._last_cmd_vel_time
+                        if self._last_cmd_vel_time is not None
+                        else 0.0
+                    )
+                    self._last_cmd_vel_time = now
+                    if twist.linear.x > 0:
+                        print(f"Received /space_cobot/cmd_vel (dt={dt:.3f}s)")
                     self._cmd_vel_pub.publish(twist)
 
     def _to_twist(self, data: Any) -> Twist | None:

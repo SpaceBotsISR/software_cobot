@@ -25,6 +25,7 @@ setup(
     entry_points={
         "console_scripts": [
             "teleop_node = teleop.teleop_node:main",
+            "space_cobot_tf_broadcaster = teleop.tf_broadcaster:main",
         ],
     },
 )

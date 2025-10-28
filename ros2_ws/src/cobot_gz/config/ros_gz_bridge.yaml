@@ -28,6 +28,12 @@
   gz_type_name: "gz.msgs.PointCloudPacked"
   direction: GZ_TO_ROS
 
+- ros_topic_name: "/scan/points"
+  ros_type_name: "sensor_msgs/msg/PointCloud2"
+  gz_topic_name: "/scan/points"
+  gz_type_name: "gz.msgs.PointCloudPacked"
+  direction: GZ_TO_ROS
+
 - ros_topic_name: "/space_cobot/pose"
   ros_type_name: "geometry_msgs/msg/PoseStamped"
   gz_topic_name: "/model/space_cobot/pose"

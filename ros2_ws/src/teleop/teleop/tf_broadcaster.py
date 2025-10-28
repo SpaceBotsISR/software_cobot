@@ -1,0 +1,132 @@
+"""Publish TF frames for the Space Cobot model."""
+
+from __future__ import annotations
+
+from typing import List
+
+import math
+import rclpy
+from geometry_msgs.msg import PoseStamped, TransformStamped
+from rclpy.node import Node
+from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
+
+
+def make_static_transform(
+    parent: str,
+    child: str,
+    xyz: List[float] | tuple[float, float, float],
+    rpy: List[float] | tuple[float, float, float] = (0.0, 0.0, 0.0),
+) -> TransformStamped:
+    """Utility to create a zero-rate transform from XYZ + RPY."""
+    transform = TransformStamped()
+    transform.header.frame_id = parent
+    transform.child_frame_id = child
+    transform.transform.translation.x = float(xyz[0])
+    transform.transform.translation.y = float(xyz[1])
+    transform.transform.translation.z = float(xyz[2])
+
+    # Convert roll / pitch / yaw to quaternion.
+    roll, pitch, yaw = rpy
+    cy = math.cos(yaw * 0.5)
+    sy = math.sin(yaw * 0.5)
+    cp = math.cos(pitch * 0.5)
+    sp = math.sin(pitch * 0.5)
+    cr = math.cos(roll * 0.5)
+    sr = math.sin(roll * 0.5)
+
+    transform.transform.rotation.w = cr * cp * cy + sr * sp * sy
+    transform.transform.rotation.x = sr * cp * cy - cr * sp * sy
+    transform.transform.rotation.y = cr * sp * cy + sr * cp * sy
+    transform.transform.rotation.z = cr * cp * sy - sr * sp * cy
+    return transform
+
+
+class SpaceCobotTfPublisher(Node):
+    """Broadcast dynamic and static transforms for Space Cobot."""
+
+    def __init__(self) -> None:
+        super().__init__("space_cobot_tf_broadcaster")
+
+        self.declare_parameter("world_frame", "world")
+        self.declare_parameter("base_frame", "body")
+        self.declare_parameter("lidar_frame", "space_cobot/lidar_link")
+        self.declare_parameter("sensor_frame", "space_cobot/lidar_link/lidar")
+        self.declare_parameter("camera_frame", "space_cobot/depth_cam_link")
+
+        self._world_frame = (
+            self.get_parameter("world_frame").get_parameter_value().string_value
+            or "world"
+        )
+        self._base_frame = (
+            self.get_parameter("base_frame").get_parameter_value().string_value
+            or "body"
+        )
+        self._lidar_frame = (
+            self.get_parameter("lidar_frame").get_parameter_value().string_value
+            or "space_cobot/lidar_link"
+        )
+        self._sensor_frame = (
+            self.get_parameter("sensor_frame").get_parameter_value().string_value
+            or "space_cobot/lidar_link/lidar"
+        )
+        self._camera_frame = (
+            self.get_parameter("camera_frame").get_parameter_value().string_value
+            or "space_cobot/depth_cam_link"
+        )
+
+        self._tf_broadcaster = TransformBroadcaster(self)
+        self._static_broadcaster = StaticTransformBroadcaster(self)
+        self._publish_static_transforms()
+
+        self.create_subscription(
+            PoseStamped,
+            "/space_cobot/pose",
+            self._handle_pose,
+            10,
+        )
+
+        self.get_logger().info(
+            f"Space Cobot TF broadcaster active. Dynamic frame {self._world_frame} -> {self._base_frame}. "
+            "Static frames registered for lidar and camera."
+        )
+
+    def _publish_static_transforms(self) -> None:
+        transforms = [
+            make_static_transform(self._base_frame, self._lidar_frame, (0.0, 0.0, 0.0)),
+            make_static_transform(self._lidar_frame, self._sensor_frame, (0.0, 0.0, 0.0)),
+            make_static_transform(self._base_frame, self._camera_frame, (0.36, 0.0, 0.13)),
+        ]
+        now = self.get_clock().now().to_msg()
+        for transform in transforms:
+            transform.header.stamp = now
+        self._static_broadcaster.sendTransform(transforms)
+
+    def _handle_pose(self, msg: PoseStamped) -> None:
+        transform = TransformStamped()
+        transform.header.stamp = msg.header.stamp
+        if transform.header.stamp.sec == 0 and transform.header.stamp.nanosec == 0:
+            transform.header.stamp = self.get_clock().now().to_msg()
+        transform.header.frame_id = self._world_frame
+        transform.child_frame_id = self._base_frame
+        transform.transform.translation.x = msg.pose.position.x
+        transform.transform.translation.y = msg.pose.position.y
+        transform.transform.translation.z = msg.pose.position.z
+        transform.transform.rotation.x = msg.pose.orientation.x
+        transform.transform.rotation.y = msg.pose.orientation.y
+        transform.transform.rotation.z = msg.pose.orientation.z
+        transform.transform.rotation.w = msg.pose.orientation.w
+        self._tf_broadcaster.sendTransform(transform)
+
+
+def main() -> None:
+    rclpy.init()
+    node = SpaceCobotTfPublisher()
+    try:
+        rclpy.spin(node)
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main()

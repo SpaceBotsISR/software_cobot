@@ -96,5 +96,11 @@ def generate_launch_description():
                 parameters=[{"config_file": LaunchConfiguration("config_file")}],
                 output="screen",
             ),
+            Node(
+                package="teleop",
+                executable="space_cobot_tf_broadcaster",
+                name="space_cobot_tf_broadcaster",
+                output="screen",
+            ),
         ]
     )
