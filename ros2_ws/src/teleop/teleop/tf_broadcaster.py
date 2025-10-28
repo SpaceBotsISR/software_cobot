@@ -52,6 +52,8 @@ class SpaceCobotTfPublisher(Node):
         self.declare_parameter("lidar_frame", "space_cobot/lidar_link")
         self.declare_parameter("sensor_frame", "space_cobot/lidar_link/lidar")
         self.declare_parameter("camera_frame", "space_cobot/depth_cam_link")
+        self.declare_parameter("depth_sensor_frame", "space_cobot/depth_cam_link/depth_camera")
+        self.declare_parameter("map_frame", "map")
 
         self._world_frame = (
             self.get_parameter("world_frame").get_parameter_value().string_value
@@ -72,6 +74,13 @@ class SpaceCobotTfPublisher(Node):
         self._camera_frame = (
             self.get_parameter("camera_frame").get_parameter_value().string_value
             or "space_cobot/depth_cam_link"
+        )
+        self._depth_sensor_frame = (
+            self.get_parameter("depth_sensor_frame").get_parameter_value().string_value
+            or "space_cobot/depth_cam_link/depth_camera"
+        )
+        self._map_frame = (
+            self.get_parameter("map_frame").get_parameter_value().string_value or ""
         )
 
         self._tf_broadcaster = TransformBroadcaster(self)
@@ -95,7 +104,12 @@ class SpaceCobotTfPublisher(Node):
             make_static_transform(self._base_frame, self._lidar_frame, (0.0, 0.0, 0.0)),
             make_static_transform(self._lidar_frame, self._sensor_frame, (0.0, 0.0, 0.0)),
             make_static_transform(self._base_frame, self._camera_frame, (0.36, 0.0, 0.13)),
+            make_static_transform(self._camera_frame, self._depth_sensor_frame, (0.0, 0.0, 0.0)),
         ]
+        if self._map_frame and self._map_frame != self._world_frame:
+            transforms.append(
+                make_static_transform(self._map_frame, self._world_frame, (0.0, 0.0, 0.0))
+            )
         now = self.get_clock().now().to_msg()
         for transform in transforms:
             transform.header.stamp = now
