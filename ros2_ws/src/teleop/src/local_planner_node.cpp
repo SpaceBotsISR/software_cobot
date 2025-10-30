@@ -57,16 +57,16 @@ struct QueueCompare {
 };
 }  // namespace
 
-class SimpleGoalPlanner : public rclcpp::Node {
+class PathPlanner : public rclcpp::Node {
    public:
-    SimpleGoalPlanner() : rclcpp::Node("simple_goal_planner") {
+    PathPlanner() : rclcpp::Node("path_planner") {
         const std::string map_topic = declare_parameter<std::string>("map_topic", "/octomap_full");
         const std::string pose_topic =
             declare_parameter<std::string>("pose_topic", "/space_cobot/pose");
         const std::string goal_topic =
             declare_parameter<std::string>("goal_topic", "/space_cobot/goal");
         const std::string path_topic =
-            declare_parameter<std::string>("path_topic", "/space_cobot/local_path");
+            declare_parameter<std::string>("path_topic", "/space_cobot/planner/path");
         map_frame_ = declare_parameter<std::string>("map_frame", "map");
 
         robot_radius_ = declare_parameter("robot_radius", 0.35);
@@ -76,7 +76,7 @@ class SimpleGoalPlanner : public rclcpp::Node {
         line_sample_step_ = declare_parameter("line_sample_step", 0.25);
         debug_markers_ = declare_parameter("debug_markers", true);
         marker_topic_ =
-            declare_parameter<std::string>("marker_topic", "/space_cobot/local_path_markers");
+            declare_parameter<std::string>("marker_topic", "/space_cobot/planner/path_markers");
 
         if (line_sample_step_ <= 0.0) {
             RCLCPP_WARN(
@@ -87,15 +87,15 @@ class SimpleGoalPlanner : public rclcpp::Node {
 
         map_sub_ = create_subscription<octomap_msgs::msg::Octomap>(
             map_topic, rclcpp::QoS(1).transient_local(),
-            std::bind(&SimpleGoalPlanner::mapCallback, this, std::placeholders::_1));
+            std::bind(&PathPlanner::mapCallback, this, std::placeholders::_1));
 
         pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
             pose_topic, rclcpp::SensorDataQoS(),
-            std::bind(&SimpleGoalPlanner::poseCallback, this, std::placeholders::_1));
+            std::bind(&PathPlanner::poseCallback, this, std::placeholders::_1));
 
         goal_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
             goal_topic, rclcpp::QoS(rclcpp::KeepLast(5)).reliable(),
-            std::bind(&SimpleGoalPlanner::goalCallback, this, std::placeholders::_1));
+            std::bind(&PathPlanner::goalCallback, this, std::placeholders::_1));
 
         path_pub_ = create_publisher<nav_msgs::msg::Path>(path_topic, 10);
         if (debug_markers_) {
@@ -105,7 +105,7 @@ class SimpleGoalPlanner : public rclcpp::Node {
 
         RCLCPP_INFO(
             get_logger(),
-            "SimpleGoalPlanner ready. Only computes on new goal.\n  map:%s pose:%s goal:%s path:%s",
+            "PathPlanner ready. Only computes on new goal.\n  map:%s pose:%s goal:%s path:%s",
             map_topic.c_str(), pose_topic.c_str(), goal_topic.c_str(), path_topic.c_str());
     }
 
@@ -559,7 +559,7 @@ class SimpleGoalPlanner : public rclcpp::Node {
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<SimpleGoalPlanner>());
+    rclcpp::spin(std::make_shared<PathPlanner>());
     rclcpp::shutdown();
     return 0;
 }

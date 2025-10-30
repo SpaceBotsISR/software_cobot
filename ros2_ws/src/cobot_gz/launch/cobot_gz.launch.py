@@ -20,6 +20,7 @@ DEFAULT_WORLD = "world.sdf"
 DEFAULT_BRIDGE = "ros_gz_bridge"
 DEFAULT_USE_COMPOSITION = True
 DEFAULT_CREATE_CONTAINER = True
+DEFAULT_USE_SIM_TIME = True
 
 
 def generate_launch_description():
@@ -40,6 +41,9 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "create_own_container", default_value=str(DEFAULT_CREATE_CONTAINER)
+        ),
+        DeclareLaunchArgument(
+            "use_sim_time", default_value=str(DEFAULT_USE_SIM_TIME).lower()
         ),
     ]
 
@@ -93,13 +97,19 @@ def generate_launch_description():
                 package=LaunchConfiguration("bridge_name"),
                 executable="parameter_bridge",
                 name="sensor_bridge",
-                parameters=[{"config_file": LaunchConfiguration("config_file")}],
+                parameters=[
+                    {
+                        "config_file": LaunchConfiguration("config_file"),
+                        "use_sim_time": LaunchConfiguration("use_sim_time"),
+                    }
+                ],
                 output="screen",
             ),
             Node(
                 package="cobot_gz",
                 executable="space_cobot_tf_broadcaster",
                 name="space_cobot_tf_broadcaster",
+                parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
                 output="screen",
             ),
         ]
