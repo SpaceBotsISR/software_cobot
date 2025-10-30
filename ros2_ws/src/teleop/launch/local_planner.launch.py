@@ -16,16 +16,19 @@ def generate_launch_description() -> LaunchDescription:
     )
 
     config_file = LaunchConfiguration("config_file")
+    use_sim_time = LaunchConfiguration("use_sim_time")
 
     return LaunchDescription(
         [
             DeclareLaunchArgument("config_file", default_value=default_config),
+            DeclareLaunchArgument("use_sim_time", default_value="true"),
             Node(
                 package="teleop",
                 executable="local_planner_node",
                 name="simple_local_planner",
+                namespace="teleop",
                 output="screen",
-                parameters=[config_file],
+                parameters=[config_file, {"use_sim_time": use_sim_time}],
             ),
         ]
     )

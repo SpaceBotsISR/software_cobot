@@ -10,7 +10,9 @@ def generate_launch_description():
         name="octomap_server",
         output="screen",
         remappings=[("cloud_in", "/main_camera/points")],
-        parameters=[{"resolution": 0.1, "max_range": 6.0, "frame_id": "map"}],
+        parameters=[
+            {"resolution": 0.1, "max_range": 6.0, "frame_id": "map", "use_sim_time": True}
+        ],
     )
 
     return LaunchDescription([octomap])
