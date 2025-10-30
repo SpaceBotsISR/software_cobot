@@ -1,10 +1,11 @@
+#!/usr/bin/env python3
 """Publish TF frames for the Space Cobot model."""
 
 from __future__ import annotations
 
+import math
 from typing import List
 
-import math
 import rclpy
 from geometry_msgs.msg import PoseStamped, TransformStamped
 from rclpy.node import Node
@@ -56,12 +57,10 @@ class SpaceCobotTfPublisher(Node):
         self.declare_parameter("map_frame", "map")
 
         self._world_frame = (
-            self.get_parameter("world_frame").get_parameter_value().string_value
-            or "world"
+            self.get_parameter("world_frame").get_parameter_value().string_value or "world"
         )
         self._base_frame = (
-            self.get_parameter("base_frame").get_parameter_value().string_value
-            or "body"
+            self.get_parameter("base_frame").get_parameter_value().string_value or "body"
         )
         self._lidar_frame = (
             self.get_parameter("lidar_frame").get_parameter_value().string_value
@@ -87,12 +86,7 @@ class SpaceCobotTfPublisher(Node):
         self._static_broadcaster = StaticTransformBroadcaster(self)
         self._publish_static_transforms()
 
-        self.create_subscription(
-            PoseStamped,
-            "/space_cobot/pose",
-            self._handle_pose,
-            10,
-        )
+        self.create_subscription(PoseStamped, "/space_cobot/pose", self._handle_pose, 10)
 
         self.get_logger().info(
             f"Space Cobot TF broadcaster active. Dynamic frame {self._world_frame} -> {self._base_frame}. "

@@ -20,17 +20,36 @@ RUN apt-get update && apt-get install -y --no-install-recommends wget gnupg lsb-
     && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/gazebo-archive-keyring.gpg] http://packages.osrfoundation.org/gazebo/ubuntu-stable $(lsb_release -cs) main" \
     > /etc/apt/sources.list.d/gazebo-stable.list
 
-# ROS extras, ros_gz, Gazebo Garden
-RUN apt-get update && apt-get install -y \
-    ros-humble-geometry-msgs \
+# ROS 2 Humble + Gazebo Garden + useful packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Core
+    ros-humble-desktop \
+    ros-humble-ros-base \
+    ros-humble-diagnostic-updater \
+    ros-humble-tf2-ros ros-humble-tf2-geometry-msgs ros-humble-tf-transformations \
+    ros-humble-pluginlib ros-humble-class-loader ros-humble-nodelet2 \
+    # Messages, geometry, and math
+    ros-humble-geometry-msgs ros-humble-sensor-msgs ros-humble-std-msgs ros-humble-nav-msgs \
+    ros-humble-angles ros-humble-geometry2 \
+    # Control + Navigation
+    ros-humble-nav2-bringup ros-humble-nav2-core ros-humble-nav2-utils ros-humble-nav2-costmap-2d \
+    ros-humble-nav2-map-server ros-humble-nav2-planner ros-humble-nav2-controller ros-humble-nav2-waypoint-follower \
+    ros-humble-ros2-control ros-humble-ros2-controllers ros-humble-joint-state-publisher ros-humble-joint-state-broadcaster \
+    # Perception + Image
+    ros-humble-vision-opencv ros-humble-cv-bridge ros-humble-image-transport ros-humble-image-transport-plugins \
+    ros-humble-depth-image-proc ros-humble-pcl-msgs ros-humble-pcl-conversions \
+    # Visualization
+    ros-humble-rviz2 ros-humble-rviz-common ros-humble-rviz-default-plugins ros-humble-rviz-visual-tools ros-humble-rviz-rendering ros-humble-nav2-rviz-plugins \
+    # Logging and bags
+    ros-humble-rosbag2 ros-humble-rosbag2-storage-default-plugins ros-humble-rosbag2-storage-mcap \
+    # Bridges
+    ros-humble-foxglove-bridge ros-humble-ros-gz \
+    # MAVROS 
     ros-humble-mavros ros-humble-mavros-msgs \
-    ros-humble-rviz2 ros-humble-rviz-common \
-    ros-humble-rviz-default-plugins ros-humble-rviz-visual-tools \
-    ros-humble-rviz-rendering ros-humble-nav2-rviz-plugins \
-    ros-humble-foxglove-bridge ros-humble-rosbag2-storage-mcap \
-    ros-humble-angles ros-humble-vision-opencv ros-humble-cv-bridge \
-    ros-humble-ros-gz \
+    # Gazebo Garden
     gz-garden \
+    # Misc
+    ros-humble-robot-state-publisher ros-humble-xacro \
     && rm -rf /var/lib/apt/lists/*
 
 # Python packages
