@@ -24,6 +24,7 @@
 
 namespace {
 using KeyId = std::uint64_t;
+constexpr char kMarkerNamespace[] = "path_planner";
 
 KeyId keyToId(const octomap::OcTreeKey& key) {
     return (static_cast<KeyId>(key.k[0]) << 32) | (static_cast<KeyId>(key.k[1]) << 16) |
@@ -461,14 +462,14 @@ class PathPlanner : public rclcpp::Node {
 
         visualization_msgs::msg::Marker clear;
         clear.header = path.header;
-        clear.ns = "simple_goal_planner";
+        clear.ns = kMarkerNamespace;
         clear.id = 0;
         clear.action = visualization_msgs::msg::Marker::DELETEALL;
         arr.markers.push_back(clear);
 
         visualization_msgs::msg::Marker line;
         line.header = path.header;
-        line.ns = "simple_goal_planner";
+        line.ns = kMarkerNamespace;
         line.id = 1;
         line.type = visualization_msgs::msg::Marker::LINE_STRIP;
         line.action = visualization_msgs::msg::Marker::ADD;
@@ -481,13 +482,29 @@ class PathPlanner : public rclcpp::Node {
         for (const auto& ps : path.poses) line.points.emplace_back(ps.pose.position);
         arr.markers.push_back(line);
 
+        visualization_msgs::msg::Marker waypoints;
+        waypoints.header = path.header;
+        waypoints.ns = kMarkerNamespace;
+        waypoints.id = 2;
+        waypoints.type = visualization_msgs::msg::Marker::SPHERE_LIST;
+        waypoints.action = visualization_msgs::msg::Marker::ADD;
+        waypoints.pose.orientation.w = 1.0;
+        waypoints.scale.x = waypoints.scale.y = waypoints.scale.z = 0.12;
+        waypoints.color.a = 0.75F;
+        waypoints.color.r = 0.2F;
+        waypoints.color.g = 0.8F;
+        waypoints.color.b = 1.0F;
+        waypoints.points.reserve(path.poses.size());
+        for (const auto& pose : path.poses) waypoints.points.emplace_back(pose.pose.position);
+        arr.markers.push_back(waypoints);
+
         const auto& sp = path.poses.front().pose.position;
         const auto& gp = path.poses.back().pose.position;
 
         visualization_msgs::msg::Marker start;
         start.header = path.header;
-        start.ns = "simple_goal_planner";
-        start.id = 2;
+        start.ns = kMarkerNamespace;
+        start.id = 3;
         start.type = visualization_msgs::msg::Marker::SPHERE;
         start.action = visualization_msgs::msg::Marker::ADD;
         start.pose.position = sp;
@@ -501,8 +518,8 @@ class PathPlanner : public rclcpp::Node {
 
         visualization_msgs::msg::Marker goal;
         goal.header = path.header;
-        goal.ns = "simple_goal_planner";
-        goal.id = 3;
+        goal.ns = kMarkerNamespace;
+        goal.id = 4;
         goal.type = visualization_msgs::msg::Marker::SPHERE;
         goal.action = visualization_msgs::msg::Marker::ADD;
         goal.pose.position = gp;
@@ -523,7 +540,7 @@ class PathPlanner : public rclcpp::Node {
         visualization_msgs::msg::Marker clear;
         clear.header.frame_id = map_frame_;
         clear.header.stamp = now();
-        clear.ns = "simple_goal_planner";
+        clear.ns = kMarkerNamespace;
         clear.id = 0;
         clear.action = visualization_msgs::msg::Marker::DELETEALL;
         arr.markers.push_back(clear);

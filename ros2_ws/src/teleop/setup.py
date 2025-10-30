@@ -22,9 +22,4 @@ setup(
             "pytest",
         ],
     },
-    entry_points={
-        "console_scripts": [
-            "teleop_node = teleop.teleop_node:main",
-        ],
-    },
 )
