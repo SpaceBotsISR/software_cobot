@@ -11,6 +11,7 @@
 #include <unordered_set>
 #include <utility>
 #include <vector>
+#include <chrono>
 
 #include "geometry_msgs/msg/pose_stamped.hpp"
 #include "nav_msgs/msg/path.hpp"
@@ -51,26 +52,22 @@ struct QueueEntry {
     KeyId id{};
     double f_cost{};
 };
-
 struct QueueCompare {
-    bool operator()(const QueueEntry& lhs, const QueueEntry& rhs) const {
-        return lhs.f_cost > rhs.f_cost;
-    }
+    bool operator()(const QueueEntry& a, const QueueEntry& b) const { return a.f_cost > b.f_cost; }
 };
 }  // namespace
 
-class SimpleLocalPlanner : public rclcpp::Node {
+class SimpleGoalPlanner : public rclcpp::Node {
    public:
-    SimpleLocalPlanner() : rclcpp::Node("simple_local_planner") {
-        const std::string default_map_topic =
-            declare_parameter<std::string>("map_topic", "/octomap_full");
-        const std::string default_pose_topic =
+    SimpleGoalPlanner() : rclcpp::Node("simple_goal_planner") {
+        const std::string map_topic = declare_parameter<std::string>("map_topic", "/octomap_full");
+        const std::string pose_topic =
             declare_parameter<std::string>("pose_topic", "/space_cobot/pose");
-        const std::string default_goal_topic =
+        const std::string goal_topic =
             declare_parameter<std::string>("goal_topic", "/space_cobot/goal");
-        map_frame_ = declare_parameter<std::string>("map_frame", "map");
         const std::string path_topic =
             declare_parameter<std::string>("path_topic", "/space_cobot/local_path");
+        map_frame_ = declare_parameter<std::string>("map_frame", "map");
 
         robot_radius_ = declare_parameter("robot_radius", 0.35);
         occupancy_threshold_ = declare_parameter("occupancy_threshold", 0.5);
@@ -82,169 +79,192 @@ class SimpleLocalPlanner : public rclcpp::Node {
             declare_parameter<std::string>("marker_topic", "/space_cobot/local_path_markers");
 
         if (line_sample_step_ <= 0.0) {
-            RCLCPP_WARN(get_logger(),
-                        "line_sample_step must be positive. Resetting to the map resolution once "
-                        "it is available.");
+            RCLCPP_WARN(
+                get_logger(),
+                "line_sample_step must be > 0; will set to map resolution when map arrives.");
             line_sample_step_ = 0.0;
         }
 
         map_sub_ = create_subscription<octomap_msgs::msg::Octomap>(
-            default_map_topic, rclcpp::QoS(1).transient_local(),
-            std::bind(&SimpleLocalPlanner::mapCallback, this, std::placeholders::_1));
+            map_topic, rclcpp::QoS(1).transient_local(),
+            std::bind(&SimpleGoalPlanner::mapCallback, this, std::placeholders::_1));
+
         pose_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
-            default_pose_topic, rclcpp::SensorDataQoS(),
-            std::bind(&SimpleLocalPlanner::poseCallback, this, std::placeholders::_1));
+            pose_topic, rclcpp::SensorDataQoS(),
+            std::bind(&SimpleGoalPlanner::poseCallback, this, std::placeholders::_1));
+
         goal_sub_ = create_subscription<geometry_msgs::msg::PoseStamped>(
-            default_goal_topic, rclcpp::QoS(rclcpp::KeepLast(5)).reliable(),
-            std::bind(&SimpleLocalPlanner::goalCallback, this, std::placeholders::_1));
+            goal_topic, rclcpp::QoS(rclcpp::KeepLast(5)).reliable(),
+            std::bind(&SimpleGoalPlanner::goalCallback, this, std::placeholders::_1));
 
         path_pub_ = create_publisher<nav_msgs::msg::Path>(path_topic, 10);
         if (debug_markers_) {
             marker_pub_ = create_publisher<visualization_msgs::msg::MarkerArray>(marker_topic_, 10);
-            RCLCPP_INFO(get_logger(),
-                        "Debug markers enabled; publishing visualization markers on %s.",
-                        marker_topic_.c_str());
+            RCLCPP_INFO(get_logger(), "Debug markers enabled on %s.", marker_topic_.c_str());
         }
 
-        RCLCPP_INFO(get_logger(),
-                    "SimpleLocalPlanner ready. Map topic: %s, pose topic: %s, goal topic: %s, path "
-                    "topic: %s",
-                    default_map_topic.c_str(), default_pose_topic.c_str(),
-                    default_goal_topic.c_str(), path_topic.c_str());
+        RCLCPP_INFO(
+            get_logger(),
+            "SimpleGoalPlanner ready. Only computes on new goal.\n  map:%s pose:%s goal:%s path:%s",
+            map_topic.c_str(), pose_topic.c_str(), goal_topic.c_str(), path_topic.c_str());
     }
 
    private:
+    // --- Subscriptions ---
     void mapCallback(const octomap_msgs::msg::Octomap::SharedPtr msg) {
-        octomap::AbstractOcTree* abstract_tree = octomap_msgs::msgToMap(*msg);
-        if (!abstract_tree) {
-            RCLCPP_WARN(get_logger(), "Received octomap message that could not be converted.");
+        if (planning_in_progress_) {
+            deferred_octomap_msg_ = msg;  // apply after current plan finishes
             return;
         }
-
-        auto* octree = dynamic_cast<octomap::OcTree*>(abstract_tree);
-        if (!octree) {
-            RCLCPP_WARN(get_logger(),
-                        "Received octomap that is not an OcTree. Only OcTree is supported for this "
-                        "planner.");
-            delete abstract_tree;
-            return;
-        }
-
-        octree_.reset(octree);
-        RCLCPP_INFO(get_logger(), "Updated octomap (resolution %.3f m, depth %u).",
-                    octree_->getResolution(), octree_->getTreeDepth());
-
-        if (line_sample_step_ <= 0.0) {
-            line_sample_step_ = octree_->getResolution() * 0.5;
-            RCLCPP_INFO(get_logger(), "line_sample_step automatically set to %.3f m",
-                        line_sample_step_);
-        }
-
-        tryPlan();
+        updateOctomapFromMessage(msg);
+        // NOTE: No planning here (goal-triggered only).
     }
 
     void poseCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-        current_pose_ = *msg;
-        tryPlan();
+        current_pose_ = *msg;  // store latest; does NOT trigger planning
     }
 
     void goalCallback(const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-        goal_pose_ = *msg;
-        RCLCPP_INFO(get_logger(), "Received new goal (%.2f, %.2f, %.2f).", msg->pose.position.x,
+        pending_goal_ = *msg;  // always keep the latest requested goal
+        RCLCPP_INFO(get_logger(), "New goal received: (%.2f, %.2f, %.2f).", msg->pose.position.x,
                     msg->pose.position.y, msg->pose.position.z);
-        tryPlan();
+
+        if (planning_in_progress_) {
+            RCLCPP_INFO(get_logger(), "Planning in progress; this goal will run next.");
+            return;
+        }
+        planLatestGoal();  // trigger immediately
     }
 
-    void tryPlan() {
+    // --- Planning orchestration (goal-triggered only) ---
+    void planLatestGoal() {
+        if (!pending_goal_) return;
+
         if (!octree_) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "No octomap received yet; cannot plan path.");
+            RCLCPP_WARN(
+                get_logger(),
+                "No octomap yet; cannot plan. Keep publishing a goal when map is available.");
             return;
         }
         if (!current_pose_) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "No current pose received yet; cannot plan path.");
+            RCLCPP_WARN(
+                get_logger(),
+                "No current pose yet; cannot plan. Keep publishing a goal when pose is available.");
             return;
         }
-        if (!goal_pose_) {
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "No goal pose received yet; cannot plan path.");
-            return;
-        }
+
+        planning_in_progress_ = true;
+        goal_pose_ = pending_goal_;
+        pending_goal_.reset();
 
         nav_msgs::msg::Path path_msg;
-        if (!planPath(path_msg)) {
+
+        // --- measure only the planning step ---
+        const auto t0 = std::chrono::steady_clock::now();
+        const bool ok = planPath(path_msg);
+        const auto t1 = std::chrono::steady_clock::now();
+        const double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+        RCLCPP_INFO(get_logger(), "Plan computation time: %.3f ms (%s).", ms,
+                    ok ? "success" : "failure");
+        // --------------------------------------
+
+        if (ok) {
+            path_pub_->publish(path_msg);
+            publishDebugMarkers(path_msg);
+            RCLCPP_INFO(get_logger(), "Published path with %zu poses (length %.2f m).",
+                        path_msg.poses.size(), estimatePathLength(path_msg));
+        } else {
             clearDebugMarkers();
-            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 2000,
-                                 "Unable to compute a collision-free path with the current map.");
-            return;
+            RCLCPP_WARN(get_logger(), "Failed to find a collision-free path.");
         }
 
-        path_pub_->publish(path_msg);
-        publishDebugMarkers(path_msg);
-        RCLCPP_INFO(get_logger(), "Published path with %zu poses (length %.2f m).",
-                    path_msg.poses.size(), estimatePathLength(path_msg));
+        planning_in_progress_ = false;
+
+        if (deferred_octomap_msg_) {
+            updateOctomapFromMessage(deferred_octomap_msg_);
+            deferred_octomap_msg_.reset();
+        }
+        if (pending_goal_) {
+            planLatestGoal();
+        }
     }
 
+    // --- Map handling ---
+    void updateOctomapFromMessage(const octomap_msgs::msg::Octomap::SharedPtr& msg) {
+        std::unique_ptr<octomap::AbstractOcTree> abstract(octomap_msgs::msgToMap(*msg));
+        if (!abstract) {
+            RCLCPP_WARN(get_logger(), "Octomap message could not be converted.");
+            return;
+        }
+        auto* as_oc = dynamic_cast<octomap::OcTree*>(abstract.get());
+        if (!as_oc) {
+            RCLCPP_WARN(get_logger(), "Octomap is not an OcTree. Unsupported map type.");
+            return;
+        }
+        // Transfer ownership
+        abstract.release();
+        octree_.reset(as_oc);
+
+        if (line_sample_step_ <= 0.0) {
+            line_sample_step_ = octree_->getResolution() * 0.5;
+            RCLCPP_INFO(get_logger(), "line_sample_step set to %.3f m.", line_sample_step_);
+        }
+    }
+
+    // --- Core planning ---
     bool planPath(nav_msgs::msg::Path& path_out) {
-        RCLCPP_INFO(get_logger(), "Planning path from (%.2f, %.2f, %.2f) to (%.2f, %.2f, %.2f).",
-                    current_pose_->pose.position.x, current_pose_->pose.position.y,
-                    current_pose_->pose.position.z, goal_pose_->pose.position.x,
-                    goal_pose_->pose.position.y, goal_pose_->pose.position.z);
-        if (!octree_ || !current_pose_ || !goal_pose_) {
+        const auto& start_p = current_pose_->pose.position;
+        const auto& goal_p = goal_pose_->pose.position;
+        RCLCPP_INFO(get_logger(), "Planning from (%.2f, %.2f, %.2f) to (%.2f, %.2f, %.2f).",
+                    start_p.x, start_p.y, start_p.z, goal_p.x, goal_p.y, goal_p.z);
+
+        if (!octree_) return false;
+
+        octomap::OcTreeKey start_key, goal_key;
+        if (!octree_->coordToKeyChecked(start_p.x, start_p.y, start_p.z, start_key)) {
+            RCLCPP_WARN(get_logger(), "Start is outside map bounds.");
+            return false;
+        }
+        if (!octree_->coordToKeyChecked(goal_p.x, goal_p.y, goal_p.z, goal_key)) {
+            RCLCPP_WARN(get_logger(), "Goal is outside map bounds.");
             return false;
         }
 
-        octomap::OcTreeKey start_key;
-        if (!octree_->coordToKeyChecked(current_pose_->pose.position.x,
-                                        current_pose_->pose.position.y,
-                                        current_pose_->pose.position.z, start_key)) {
-            RCLCPP_WARN(get_logger(), "Current pose is outside of the map bounds.");
+        const octomap::point3d start_c = keyToCoord(*octree_, start_key);
+        const octomap::point3d goal_c = keyToCoord(*octree_, goal_key);
+
+        if (!isCollisionFree(start_c)) {
+            RCLCPP_WARN(get_logger(), "Start in collision.");
+            return false;
+        }
+        if (!isCollisionFree(goal_c)) {
+            RCLCPP_WARN(get_logger(), "Goal in collision.");
             return false;
         }
 
-        octomap::OcTreeKey goal_key;
-        if (!octree_->coordToKeyChecked(goal_pose_->pose.position.x, goal_pose_->pose.position.y,
-                                        goal_pose_->pose.position.z, goal_key)) {
-            RCLCPP_WARN(get_logger(), "Goal pose is outside of the map bounds.");
-            return false;
-        }
-
-        const octomap::point3d start_coord = keyToCoord(*octree_, start_key);
-        const octomap::point3d goal_coord = keyToCoord(*octree_, goal_key);
-
-        if (!isCollisionFree(start_coord)) {
-            RCLCPP_WARN(get_logger(), "Robot start position is in collision.");
-            return false;
-        }
-
-        if (!isCollisionFree(goal_coord)) {
-            RCLCPP_WARN(get_logger(), "Goal position is in collision.");
-            return false;
-        }
-
-        if (euclidean(start_coord, goal_coord) < 1e-3) {
+        if (euclidean(start_c, goal_c) < 1e-3) {
             path_out = nav_msgs::msg::Path();
             path_out.header.stamp = now();
             path_out.header.frame_id = map_frame_;
             geometry_msgs::msg::PoseStamped pose;
             pose.header = path_out.header;
-            pose.pose.position.x = start_coord.x();
-            pose.pose.position.y = start_coord.y();
-            pose.pose.position.z = start_coord.z();
+            pose.pose.position.x = start_c.x();
+            pose.pose.position.y = start_c.y();
+            pose.pose.position.z = start_c.z();
             pose.pose.orientation.w = 1.0;
             path_out.poses.push_back(pose);
             return true;
         }
 
-        if (isLineFree(start_coord, goal_coord)) {
-            path_out = createStraightPath(start_coord, goal_coord);
+        // Try straight line first
+        if (isLineFree(start_c, goal_c)) {
+            path_out = createStraightPath(start_c, goal_c);
             return true;
         }
 
+        // A* grid over OcTree keys
         std::vector<octomap::OcTreeKey> key_path;
-        if (!performAStar(start_key, goal_key, start_coord, goal_coord, key_path)) {
-            RCLCPP_WARN(get_logger(), "A* search failed to find a path.");
+        if (!performAStar(start_key, goal_key, start_c, goal_c, key_path)) {
             return false;
         }
 
@@ -255,337 +275,262 @@ class SimpleLocalPlanner : public rclcpp::Node {
     bool performAStar(const octomap::OcTreeKey& start_key, const octomap::OcTreeKey& goal_key,
                       const octomap::point3d& start_coord, const octomap::point3d& goal_coord,
                       std::vector<octomap::OcTreeKey>& result_path) {
-        const double resolution = octree_->getResolution();
-        const double max_range_sq = max_search_range_ > 0.0
-                                        ? max_search_range_ * max_search_range_
-                                        : std::numeric_limits<double>::infinity();
+        const double res = octree_->getResolution();
+        const double max_range2 = (max_search_range_ > 0.0)
+                                      ? max_search_range_ * max_search_range_
+                                      : std::numeric_limits<double>::infinity();
 
-        std::vector<octomap::point3d> neighbor_directions;
-        neighbor_directions.reserve(26);
-        const float step = static_cast<float>(resolution);
-        for (int dx = -1; dx <= 1; ++dx) {
-            for (int dy = -1; dy <= 1; ++dy) {
-                for (int dz = -1; dz <= 1; ++dz) {
-                    if (dx == 0 && dy == 0 && dz == 0) {
-                        continue;
-                    }
-                    neighbor_directions.emplace_back(dx * step, dy * step, dz * step);
-                }
-            }
-        }
+        // 26-connected neighbors
+        std::vector<octomap::point3d> dirs;
+        dirs.reserve(26);
+        const float step = static_cast<float>(res);
+        for (int dx = -1; dx <= 1; ++dx)
+            for (int dy = -1; dy <= 1; ++dy)
+                for (int dz = -1; dz <= 1; ++dz)
+                    if (dx || dy || dz) dirs.emplace_back(dx * step, dy * step, dz * step);
 
         std::priority_queue<QueueEntry, std::vector<QueueEntry>, QueueCompare> open;
         std::unordered_set<KeyId> closed;
-        std::unordered_map<KeyId, double> g_score;
-        std::unordered_map<KeyId, KeyId> came_from;
-        std::unordered_map<KeyId, octomap::OcTreeKey> key_lookup;
+        std::unordered_map<KeyId, double> g;
+        std::unordered_map<KeyId, KeyId> parent;
+        std::unordered_map<KeyId, octomap::OcTreeKey> key_of;
 
-        const KeyId start_id = keyToId(start_key);
-        const KeyId goal_id = keyToId(goal_key);
-
-        g_score[start_id] = 0.0;
-        key_lookup[start_id] = start_key;
-        came_from[start_id] = start_id;
-        open.push({start_id, euclidean(start_coord, goal_coord)});
+        const KeyId s = keyToId(start_key), gk = keyToId(goal_key);
+        g[s] = 0.0;
+        parent[s] = s;
+        key_of[s] = start_key;
+        open.push({s, euclidean(start_coord, goal_coord)});
 
         std::size_t expansions = 0;
-
         while (!open.empty()) {
             if (expansions++ > static_cast<std::size_t>(max_expansions_)) {
                 RCLCPP_WARN(get_logger(), "A* expansion limit reached (%d).", max_expansions_);
                 return false;
             }
 
-            const auto current_entry = open.top();
+            const auto cur = open.top();
             open.pop();
+            if (closed.count(cur.id)) continue;
 
-            if (closed.find(current_entry.id) != closed.end()) {
-                continue;
-            }
+            const octomap::OcTreeKey cur_key = key_of.at(cur.id);
+            const octomap::point3d cur_c = keyToCoord(*octree_, cur_key);
 
-            const octomap::OcTreeKey current_key = key_lookup[current_entry.id];
-            const octomap::point3d current_coord = keyToCoord(*octree_, current_key);
-
-            if (current_entry.id == goal_id) {
-                reconstructPath(goal_id, start_id, came_from, key_lookup, result_path);
+            if (cur.id == gk) {
+                reconstructPath(gk, s, parent, key_of, result_path);
                 return true;
             }
 
-            closed.insert(current_entry.id);
+            closed.insert(cur.id);
 
-            for (const auto& direction : neighbor_directions) {
-                const octomap::point3d neighbor_coord = current_coord + direction;
+            for (const auto& d : dirs) {
+                const octomap::point3d nb_c = cur_c + d;
+                if (squaredDistance(nb_c, start_coord) > max_range2) continue;
 
-                if (squaredDistance(neighbor_coord, start_coord) > max_range_sq) {
-                    continue;
-                }
+                octomap::OcTreeKey nb_key;
+                if (!octree_->coordToKeyChecked(nb_c.x(), nb_c.y(), nb_c.z(), nb_key)) continue;
 
-                octomap::OcTreeKey neighbor_key;
-                if (!octree_->coordToKeyChecked(neighbor_coord.x(), neighbor_coord.y(),
-                                                neighbor_coord.z(), neighbor_key)) {
-                    continue;
-                }
+                const KeyId nb_id = keyToId(nb_key);
+                if (closed.count(nb_id)) continue;
+                if (!isCollisionFree(nb_c)) continue;
 
-                const KeyId neighbor_id = keyToId(neighbor_key);
-                if (closed.find(neighbor_id) != closed.end()) {
-                    continue;
-                }
+                const double tentative_g = g[cur.id] + euclidean(cur_c, nb_c);
+                auto itg = g.find(nb_id);
+                if (itg != g.end() && tentative_g >= itg->second) continue;
 
-                if (!isCollisionFree(neighbor_coord)) {
-                    continue;
-                }
-
-                const double tentative_g =
-                    g_score[current_entry.id] + euclidean(current_coord, neighbor_coord);
-
-                const auto g_it = g_score.find(neighbor_id);
-                if (g_it != g_score.end() && tentative_g >= g_it->second) {
-                    continue;
-                }
-
-                g_score[neighbor_id] = tentative_g;
-                came_from[neighbor_id] = current_entry.id;
-                key_lookup[neighbor_id] = neighbor_key;
-
-                const double h = euclidean(neighbor_coord, goal_coord);
-                open.push({neighbor_id, tentative_g + h});
+                g[nb_id] = tentative_g;
+                parent[nb_id] = cur.id;
+                key_of[nb_id] = nb_key;
+                const double h = euclidean(nb_c, goal_coord);
+                open.push({nb_id, tentative_g + h});
             }
         }
-
         return false;
     }
 
     void reconstructPath(KeyId goal_id, KeyId start_id,
-                         const std::unordered_map<KeyId, KeyId>& came_from,
-                         const std::unordered_map<KeyId, octomap::OcTreeKey>& key_lookup,
-                         std::vector<octomap::OcTreeKey>& out_path) const {
-        out_path.clear();
-        KeyId current = goal_id;
+                         const std::unordered_map<KeyId, KeyId>& parent,
+                         const std::unordered_map<KeyId, octomap::OcTreeKey>& key_of,
+                         std::vector<octomap::OcTreeKey>& out) const {
+        out.clear();
+        KeyId cur = goal_id;
         while (true) {
-            const auto key_it = key_lookup.find(current);
-            if (key_it == key_lookup.end()) {
-                break;
-            }
-            out_path.push_back(key_it->second);
-            if (current == start_id) {
-                break;
-            }
-            const auto parent_it = came_from.find(current);
-            if (parent_it == came_from.end()) {
-                break;
-            }
-            current = parent_it->second;
+            auto it = key_of.find(cur);
+            if (it == key_of.end()) break;
+            out.push_back(it->second);
+            if (cur == start_id) break;
+            auto ip = parent.find(cur);
+            if (ip == parent.end()) break;
+            cur = ip->second;
         }
-        std::reverse(out_path.begin(), out_path.end());
+        std::reverse(out.begin(), out.end());
     }
 
     nav_msgs::msg::Path keysToPath(const std::vector<octomap::OcTreeKey>& keys) const {
         nav_msgs::msg::Path path;
         path.header.stamp = now();
         path.header.frame_id = map_frame_;
-
         path.poses.reserve(keys.size());
-        for (const auto& key : keys) {
-            const octomap::point3d coord = keyToCoord(*octree_, key);
-            geometry_msgs::msg::PoseStamped pose;
-            pose.header = path.header;
-            pose.pose.position.x = coord.x();
-            pose.pose.position.y = coord.y();
-            pose.pose.position.z = coord.z();
-            pose.pose.orientation.w = 1.0;
-            path.poses.push_back(pose);
+        for (const auto& k : keys) {
+            const auto c = keyToCoord(*octree_, k);
+            geometry_msgs::msg::PoseStamped p;
+            p.header = path.header;
+            p.pose.position.x = c.x();
+            p.pose.position.y = c.y();
+            p.pose.position.z = c.z();
+            p.pose.orientation.w = 1.0;
+            path.poses.push_back(p);
         }
         return path;
     }
 
-    nav_msgs::msg::Path createStraightPath(const octomap::point3d& start_coord,
-                                           const octomap::point3d& goal_coord) const {
+    nav_msgs::msg::Path createStraightPath(const octomap::point3d& a,
+                                           const octomap::point3d& b) const {
         nav_msgs::msg::Path path;
         path.header.stamp = now();
         path.header.frame_id = map_frame_;
 
-        const double distance = euclidean(start_coord, goal_coord);
+        const double dist = euclidean(a, b);
+        const double step = std::max(line_sample_step_, 1e-3);
+        const int steps = std::max(2, static_cast<int>(std::ceil(dist / step)));
 
-        const double sample_step = std::max(line_sample_step_, 1e-3);
-        const int steps = std::max(2, static_cast<int>(std::ceil(distance / sample_step)));
-
-        path.poses.reserve(static_cast<std::size_t>(steps) + 1);
+        path.poses.reserve(static_cast<std::size_t>(steps + 1));
         for (int i = 0; i <= steps; ++i) {
             const double t = static_cast<double>(i) / static_cast<double>(steps);
-            const octomap::point3d point =
-                start_coord + (goal_coord - start_coord) * static_cast<float>(t);
-            geometry_msgs::msg::PoseStamped pose;
-            pose.header = path.header;
-            pose.pose.position.x = point.x();
-            pose.pose.position.y = point.y();
-            pose.pose.position.z = point.z();
-            pose.pose.orientation.w = 1.0;
-            path.poses.push_back(pose);
+            const auto pnt = a + (b - a) * static_cast<float>(t);
+            geometry_msgs::msg::PoseStamped p;
+            p.header = path.header;
+            p.pose.position.x = pnt.x();
+            p.pose.position.y = pnt.y();
+            p.pose.position.z = pnt.z();
+            p.pose.orientation.w = 1.0;
+            path.poses.push_back(p);
         }
-
         return path;
     }
 
-    bool isCollisionFree(const octomap::point3d& point) const {
-        if (!octree_) {
-            return false;
-        }
-
-        const double resolution = octree_->getResolution();
-        const int radius_cells =
-            std::max(1, static_cast<int>(std::ceil(robot_radius_ / resolution)));
-
-        for (int dx = -radius_cells; dx <= radius_cells; ++dx) {
-            for (int dy = -radius_cells; dy <= radius_cells; ++dy) {
-                for (int dz = -radius_cells; dz <= radius_cells; ++dz) {
-                    const octomap::point3d sample_point =
-                        point + octomap::point3d(dx * static_cast<float>(resolution),
-                                                 dy * static_cast<float>(resolution),
-                                                 dz * static_cast<float>(resolution));
-                    if (squaredDistance(sample_point, point) > robot_radius_ * robot_radius_) {
-                        continue;
-                    }
-
-                    octomap::OcTreeNode* node = octree_->search(sample_point);
-                    if (!node) {
-                        continue;
-                    }
-                    const double occ = node->getOccupancy();
-                    if (occ >= occupancy_threshold_) {
-                        return false;
-                    }
+    // --- Collision / line checks ---
+    bool isCollisionFree(const octomap::point3d& p) const {
+        if (!octree_) return false;
+        const double res = octree_->getResolution();
+        const int r_cells = std::max(1, static_cast<int>(std::ceil(robot_radius_ / res)));
+        for (int dx = -r_cells; dx <= r_cells; ++dx)
+            for (int dy = -r_cells; dy <= r_cells; ++dy)
+                for (int dz = -r_cells; dz <= r_cells; ++dz) {
+                    const octomap::point3d s = p + octomap::point3d(dx * static_cast<float>(res),
+                                                                    dy * static_cast<float>(res),
+                                                                    dz * static_cast<float>(res));
+                    if (squaredDistance(s, p) > robot_radius_ * robot_radius_) continue;
+                    octomap::OcTreeNode* node = octree_->search(s);
+                    if (!node) continue;
+                    if (node->getOccupancy() >= occupancy_threshold_) return false;
                 }
-            }
-        }
-
         return true;
     }
 
-    bool isLineFree(const octomap::point3d& start, const octomap::point3d& goal) const {
-        if (!octree_) {
-            return false;
-        }
-
-        const double distance = euclidean(start, goal);
+    bool isLineFree(const octomap::point3d& a, const octomap::point3d& b) const {
+        if (!octree_) return false;
+        const double dist = euclidean(a, b);
         const double step =
             std::max(line_sample_step_, static_cast<double>(octree_->getResolution()));
-        const int samples = std::max(2, static_cast<int>(std::ceil(distance / step)));
-
-        for (int i = 0; i <= samples; ++i) {
-            const double t = static_cast<double>(i) / static_cast<double>(samples);
-            const octomap::point3d point = start + (goal - start) * static_cast<float>(t);
-            if (!isCollisionFree(point)) {
-                return false;
-            }
+        const int N = std::max(2, static_cast<int>(std::ceil(dist / step)));
+        for (int i = 0; i <= N; ++i) {
+            const double t = static_cast<double>(i) / static_cast<double>(N);
+            const auto p = a + (b - a) * static_cast<float>(t);
+            if (!isCollisionFree(p)) return false;
         }
-
         return true;
     }
 
     double estimatePathLength(const nav_msgs::msg::Path& path) const {
-        if (path.poses.size() < 2) {
-            return 0.0;
-        }
-        double length = 0.0;
+        if (path.poses.size() < 2) return 0.0;
+        double L = 0.0;
         for (std::size_t i = 1; i < path.poses.size(); ++i) {
             const auto& a = path.poses[i - 1].pose.position;
             const auto& b = path.poses[i].pose.position;
-            const double dx = b.x - a.x;
-            const double dy = b.y - a.y;
-            const double dz = b.z - a.z;
-            length += std::sqrt(dx * dx + dy * dy + dz * dz);
+            const double dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+            L += std::sqrt(dx * dx + dy * dy + dz * dz);
         }
-        return length;
+        return L;
     }
 
+    // --- Debug markers ---
     void publishDebugMarkers(const nav_msgs::msg::Path& path) {
-        if (!marker_pub_ || path.poses.empty()) {
-            return;
-        }
+        if (!marker_pub_ || path.poses.empty()) return;
 
-        visualization_msgs::msg::MarkerArray markers;
-        markers.markers.reserve(4);
+        visualization_msgs::msg::MarkerArray arr;
 
-        visualization_msgs::msg::Marker clear_marker;
-        clear_marker.header = path.header;
-        clear_marker.ns = "simple_local_planner";
-        clear_marker.id = 0;
-        clear_marker.action = visualization_msgs::msg::Marker::DELETEALL;
-        markers.markers.push_back(clear_marker);
+        visualization_msgs::msg::Marker clear;
+        clear.header = path.header;
+        clear.ns = "simple_goal_planner";
+        clear.id = 0;
+        clear.action = visualization_msgs::msg::Marker::DELETEALL;
+        arr.markers.push_back(clear);
 
-        visualization_msgs::msg::Marker line_marker;
-        line_marker.header = path.header;
-        line_marker.ns = "simple_local_planner";
-        line_marker.id = 1;
-        line_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
-        line_marker.action = visualization_msgs::msg::Marker::ADD;
-        line_marker.pose.orientation.w = 1.0;
-        line_marker.scale.x = 0.05;
-        line_marker.color.a = 1.0F;
-        line_marker.color.r = 0.0F;
-        line_marker.color.g = 1.0F;
-        line_marker.color.b = 0.3F;
-        for (const auto& pose : path.poses) {
-            line_marker.points.emplace_back(pose.pose.position);
-        }
-        markers.markers.push_back(line_marker);
+        visualization_msgs::msg::Marker line;
+        line.header = path.header;
+        line.ns = "simple_goal_planner";
+        line.id = 1;
+        line.type = visualization_msgs::msg::Marker::LINE_STRIP;
+        line.action = visualization_msgs::msg::Marker::ADD;
+        line.pose.orientation.w = 1.0;
+        line.scale.x = 0.05;
+        line.color.a = 1.0F;
+        line.color.r = 0.0F;
+        line.color.g = 1.0F;
+        line.color.b = 0.3F;
+        for (const auto& ps : path.poses) line.points.emplace_back(ps.pose.position);
+        arr.markers.push_back(line);
 
-        const auto& start_point = path.poses.front().pose.position;
-        const auto& goal_point = path.poses.back().pose.position;
+        const auto& sp = path.poses.front().pose.position;
+        const auto& gp = path.poses.back().pose.position;
 
-        visualization_msgs::msg::Marker start_marker;
-        start_marker.header = path.header;
-        start_marker.ns = "simple_local_planner";
-        start_marker.id = 2;
-        start_marker.type = visualization_msgs::msg::Marker::SPHERE;
-        start_marker.action = visualization_msgs::msg::Marker::ADD;
-        start_marker.pose.position = start_point;
-        start_marker.pose.orientation.w = 1.0;
-        start_marker.scale.x = 0.18;
-        start_marker.scale.y = 0.18;
-        start_marker.scale.z = 0.18;
-        start_marker.color.a = 0.9F;
-        start_marker.color.r = 0.0F;
-        start_marker.color.g = 0.4F;
-        start_marker.color.b = 1.0F;
-        markers.markers.push_back(start_marker);
+        visualization_msgs::msg::Marker start;
+        start.header = path.header;
+        start.ns = "simple_goal_planner";
+        start.id = 2;
+        start.type = visualization_msgs::msg::Marker::SPHERE;
+        start.action = visualization_msgs::msg::Marker::ADD;
+        start.pose.position = sp;
+        start.pose.orientation.w = 1.0;
+        start.scale.x = start.scale.y = start.scale.z = 0.18;
+        start.color.a = 0.9F;
+        start.color.r = 0.0F;
+        start.color.g = 0.4F;
+        start.color.b = 1.0F;
+        arr.markers.push_back(start);
 
-        visualization_msgs::msg::Marker goal_marker;
-        goal_marker.header = path.header;
-        goal_marker.ns = "simple_local_planner";
-        goal_marker.id = 3;
-        goal_marker.type = visualization_msgs::msg::Marker::SPHERE;
-        goal_marker.action = visualization_msgs::msg::Marker::ADD;
-        goal_marker.pose.position = goal_point;
-        goal_marker.pose.orientation.w = 1.0;
-        goal_marker.scale.x = 0.2;
-        goal_marker.scale.y = 0.2;
-        goal_marker.scale.z = 0.2;
-        goal_marker.color.a = 0.9F;
-        goal_marker.color.r = 1.0F;
-        goal_marker.color.g = 0.2F;
-        goal_marker.color.b = 0.1F;
-        markers.markers.push_back(goal_marker);
+        visualization_msgs::msg::Marker goal;
+        goal.header = path.header;
+        goal.ns = "simple_goal_planner";
+        goal.id = 3;
+        goal.type = visualization_msgs::msg::Marker::SPHERE;
+        goal.action = visualization_msgs::msg::Marker::ADD;
+        goal.pose.position = gp;
+        goal.pose.orientation.w = 1.0;
+        goal.scale.x = goal.scale.y = goal.scale.z = 0.20;
+        goal.color.a = 0.9F;
+        goal.color.r = 1.0F;
+        goal.color.g = 0.2F;
+        goal.color.b = 0.1F;
+        arr.markers.push_back(goal);
 
-        marker_pub_->publish(markers);
+        marker_pub_->publish(arr);
     }
 
     void clearDebugMarkers() {
-        if (!marker_pub_) {
-            return;
-        }
-
-        visualization_msgs::msg::MarkerArray markers;
-        visualization_msgs::msg::Marker clear_marker;
-        clear_marker.header.frame_id = map_frame_;
-        clear_marker.header.stamp = now();
-        clear_marker.ns = "simple_local_planner";
-        clear_marker.id = 0;
-        clear_marker.action = visualization_msgs::msg::Marker::DELETEALL;
-        markers.markers.push_back(clear_marker);
-        marker_pub_->publish(markers);
+        if (!marker_pub_) return;
+        visualization_msgs::msg::MarkerArray arr;
+        visualization_msgs::msg::Marker clear;
+        clear.header.frame_id = map_frame_;
+        clear.header.stamp = now();
+        clear.ns = "simple_goal_planner";
+        clear.id = 0;
+        clear.action = visualization_msgs::msg::Marker::DELETEALL;
+        arr.markers.push_back(clear);
+        marker_pub_->publish(arr);
     }
 
+    // --- Members ---
     rclcpp::Subscription<octomap_msgs::msg::Octomap>::SharedPtr map_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr goal_sub_;
@@ -595,7 +540,9 @@ class SimpleLocalPlanner : public rclcpp::Node {
     std::shared_ptr<octomap::OcTree> octree_;
     std::optional<geometry_msgs::msg::PoseStamped> current_pose_;
     std::optional<geometry_msgs::msg::PoseStamped> goal_pose_;
+    std::optional<geometry_msgs::msg::PoseStamped> pending_goal_;
 
+    // params
     double robot_radius_{0.35};
     double occupancy_threshold_{0.5};
     double max_search_range_{15.0};
@@ -604,11 +551,15 @@ class SimpleLocalPlanner : public rclcpp::Node {
     std::string map_frame_{"map"};
     bool debug_markers_{false};
     std::string marker_topic_;
+
+    // state
+    bool planning_in_progress_{false};
+    octomap_msgs::msg::Octomap::SharedPtr deferred_octomap_msg_;
 };
 
 int main(int argc, char** argv) {
     rclcpp::init(argc, argv);
-    rclcpp::spin(std::make_shared<SimpleLocalPlanner>());
+    rclcpp::spin(std::make_shared<SimpleGoalPlanner>());
     rclcpp::shutdown();
     return 0;
 }
