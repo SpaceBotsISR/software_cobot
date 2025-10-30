@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(ament_cmake REQUIRED)
-find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
@@ -14,19 +13,11 @@ find_package(octomap_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
-
-set(_python_build_dir "${CMAKE_CURRENT_BINARY_DIR}/ament_cmake_python/${PROJECT_NAME}")
-if(EXISTS "${_python_build_dir}")
-  file(REMOVE_RECURSE "${_python_build_dir}")
-endif()
-
-ament_python_install_package(${PROJECT_NAME})
-
-install(
-  PROGRAMS
-    teleop/teleop_node.py
-  DESTINATION lib/${PROJECT_NAME}
-)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS imgcodecs imgproc)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(ZMQ REQUIRED IMPORTED_TARGET libzmq)
 
 install(
   DIRECTORY resource/
@@ -44,6 +35,7 @@ install(
 )
 
 add_executable(local_planner_node src/local_planner_node.cpp)
+add_executable(teleop_node src/teleop_bridge_node.cpp)
 
 ament_target_dependencies(
   local_planner_node
@@ -57,8 +49,29 @@ ament_target_dependencies(
   visualization_msgs
 )
 
+ament_target_dependencies(
+  teleop_node
+  rclcpp
+  geometry_msgs
+  sensor_msgs
+  cv_bridge
+)
+
+target_link_libraries(
+  teleop_node
+  PkgConfig::ZMQ
+  ${OpenCV_LIBRARIES}
+)
+
+target_include_directories(
+  teleop_node PRIVATE
+  ${OpenCV_INCLUDE_DIRS}
+)
+
 install(
-  TARGETS local_planner_node
+  TARGETS
+    local_planner_node
+    teleop_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
