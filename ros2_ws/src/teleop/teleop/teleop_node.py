@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Bridge selected ROS topics out to the remote teleoperation messaging bus,
 and receive command topics (e.g., /space_cobot/cmd_vel) from the UI to ROS 2.

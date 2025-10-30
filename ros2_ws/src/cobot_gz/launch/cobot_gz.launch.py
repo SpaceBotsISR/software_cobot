@@ -97,7 +97,7 @@ def generate_launch_description():
                 output="screen",
             ),
             Node(
-                package="teleop",
+                package="cobot_gz",
                 executable="space_cobot_tf_broadcaster",
                 name="space_cobot_tf_broadcaster",
                 output="screen",
