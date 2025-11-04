@@ -30,6 +30,7 @@ setup(
     entry_points={
         "console_scripts": [
             "space_cobot_state_bridge = cobot_gz.state_bridge:main",
+            "space_cobot_tf_broadcaster = cobot_gz.tf_broadcaster:main",
         ],
     },
 )

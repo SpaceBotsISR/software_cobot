@@ -7,3 +7,6 @@
 [submodule "ros2_ws/src/ros_aruco_opencv"]
 	path = ros2_ws/src/ros_aruco_opencv
 	url = git@github.com:SpaceBotsISR/ros_aruco_opencv.git
+[submodule "ros2_ws/src/nav6d"]
+	path = ros2_ws/src/nav6d
+	url = git@github.com:ItsNotSoftware/nav6d.git

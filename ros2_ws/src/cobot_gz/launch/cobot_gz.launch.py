@@ -20,6 +20,7 @@ DEFAULT_WORLD = "world.sdf"
 DEFAULT_BRIDGE = "ros_gz_bridge"
 DEFAULT_USE_COMPOSITION = True
 DEFAULT_CREATE_CONTAINER = True
+DEFAULT_USE_SIM_TIME = True
 
 
 def generate_launch_description():
@@ -40,6 +41,9 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "create_own_container", default_value=str(DEFAULT_CREATE_CONTAINER)
+        ),
+        DeclareLaunchArgument(
+            "use_sim_time", default_value=str(DEFAULT_USE_SIM_TIME).lower()
         ),
     ]
 
@@ -76,9 +80,6 @@ def generate_launch_description():
             *args,
             # Gazebo resource and plugin paths
             SetEnvironmentVariable("GZ_SIM_RESOURCE_PATH", resource_path),
-            SetEnvironmentVariable(
-                "GZ_SIM_PLUGIN_PATH", PathJoinSubstitution([cobot_gz_path, "plugins"])
-            ),
             SetEnvironmentVariable("XDG_RUNTIME_DIR", runtime_dir),
             # === Launch Gazebo ===
             IncludeLaunchDescription(
@@ -93,13 +94,19 @@ def generate_launch_description():
                 package=LaunchConfiguration("bridge_name"),
                 executable="parameter_bridge",
                 name="sensor_bridge",
-                parameters=[{"config_file": LaunchConfiguration("config_file")}],
+                parameters=[
+                    {
+                        "config_file": LaunchConfiguration("config_file"),
+                        "use_sim_time": LaunchConfiguration("use_sim_time"),
+                    }
+                ],
                 output="screen",
             ),
             Node(
-                package="teleop",
+                package="cobot_gz",
                 executable="space_cobot_tf_broadcaster",
                 name="space_cobot_tf_broadcaster",
+                parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
                 output="screen",
             ),
         ]

@@ -1,10 +1,11 @@
+#!/usr/bin/env python3
 """Publish TF frames for the Space Cobot model."""
 
 from __future__ import annotations
 
+import math
 from typing import List
 
-import math
 import rclpy
 from geometry_msgs.msg import PoseStamped, TransformStamped
 from rclpy.node import Node
@@ -52,7 +53,9 @@ class SpaceCobotTfPublisher(Node):
         self.declare_parameter("lidar_frame", "space_cobot/lidar_link")
         self.declare_parameter("sensor_frame", "space_cobot/lidar_link/lidar")
         self.declare_parameter("camera_frame", "space_cobot/depth_cam_link")
-        self.declare_parameter("depth_sensor_frame", "space_cobot/depth_cam_link/depth_camera")
+        self.declare_parameter(
+            "depth_sensor_frame", "space_cobot/depth_cam_link/depth_camera"
+        )
         self.declare_parameter("map_frame", "map")
 
         self._world_frame = (
@@ -87,11 +90,12 @@ class SpaceCobotTfPublisher(Node):
         self._static_broadcaster = StaticTransformBroadcaster(self)
         self._publish_static_transforms()
 
+        self._pose_publisher = self.create_publisher(
+            PoseStamped, "/space_cobot/pose", 10
+        )
+        self.create_subscription(PoseStamped, "/cobot_gz/poses", self._relay_pose, 10)
         self.create_subscription(
-            PoseStamped,
-            "/space_cobot/pose",
-            self._handle_pose,
-            10,
+            PoseStamped, "/space_cobot/pose", self._handle_pose, 10
         )
 
         self.get_logger().info(
@@ -102,18 +106,30 @@ class SpaceCobotTfPublisher(Node):
     def _publish_static_transforms(self) -> None:
         transforms = [
             make_static_transform(self._base_frame, self._lidar_frame, (0.0, 0.0, 0.0)),
-            make_static_transform(self._lidar_frame, self._sensor_frame, (0.0, 0.0, 0.0)),
-            make_static_transform(self._base_frame, self._camera_frame, (0.36, 0.0, 0.13)),
-            make_static_transform(self._camera_frame, self._depth_sensor_frame, (0.0, 0.0, 0.0)),
+            make_static_transform(
+                self._lidar_frame, self._sensor_frame, (0.0, 0.0, 0.0)
+            ),
+            make_static_transform(
+                self._base_frame, self._camera_frame, (0.36, 0.0, 0.13)
+            ),
+            make_static_transform(
+                self._camera_frame, self._depth_sensor_frame, (0.0, 0.0, 0.0)
+            ),
         ]
         if self._map_frame and self._map_frame != self._world_frame:
             transforms.append(
-                make_static_transform(self._map_frame, self._world_frame, (0.0, 0.0, 0.0))
+                make_static_transform(
+                    self._map_frame, self._world_frame, (0.0, 0.0, 0.0)
+                )
             )
         now = self.get_clock().now().to_msg()
         for transform in transforms:
             transform.header.stamp = now
         self._static_broadcaster.sendTransform(transforms)
+
+    def _relay_pose(self, msg: PoseStamped) -> None:
+        if msg.header.frame_id == "default":
+            self._pose_publisher.publish(msg)
 
     def _handle_pose(self, msg: PoseStamped) -> None:
         transform = TransformStamped()
