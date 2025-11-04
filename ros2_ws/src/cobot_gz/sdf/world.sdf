@@ -12,6 +12,10 @@
             <render_engine>ogre2</render_engine>
         </plugin>
         <plugin filename="ignition-gazebo-imu-system" name="ignition::gazebo::systems::Imu" />
+        <plugin
+        filename="gz-sim-apply-link-wrench-system"
+        name="gz::sim::systems::ApplyLinkWrench">
+        </plugin>
 
         <physics name='default_physics' default='1' type='ode'>
             <max_step_size>0.01</max_step_size>

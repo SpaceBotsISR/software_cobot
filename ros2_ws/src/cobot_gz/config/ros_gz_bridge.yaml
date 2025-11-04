@@ -31,8 +31,13 @@
 - direction: ROS_TO_GZ
   gz_topic_name: /model/space_cobot/cmd_vel
   gz_type_name: gz.msgs.Twist
-  ros_topic_name: /space_cobot/cmd_vel
+  ros_topic_name: /space_cobot/cmd_vel_world
   ros_type_name: geometry_msgs/msg/Twist
+- direction: ROS_TO_GZ
+  gz_topic_name: /world/default/wrench/persistent
+  gz_type_name: gz.msgs.EntityWrench
+  ros_topic_name: /world/default/wrench/persistent
+  ros_type_name: ros_gz_interfaces/msg/EntityWrench
 - direction: GZ_TO_ROS
   gz_topic_name: /clock
   gz_type_name: gz.msgs.Clock

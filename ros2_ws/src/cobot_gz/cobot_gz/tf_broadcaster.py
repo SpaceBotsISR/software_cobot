@@ -50,8 +50,6 @@ class SpaceCobotTfPublisher(Node):
 
         self.declare_parameter("world_frame", "world")
         self.declare_parameter("base_frame", "body")
-        self.declare_parameter("lidar_frame", "space_cobot/lidar_link")
-        self.declare_parameter("sensor_frame", "space_cobot/lidar_link/lidar")
         self.declare_parameter("camera_frame", "space_cobot/depth_cam_link")
         self.declare_parameter(
             "depth_sensor_frame", "space_cobot/depth_cam_link/depth_camera"
@@ -65,14 +63,6 @@ class SpaceCobotTfPublisher(Node):
         self._base_frame = (
             self.get_parameter("base_frame").get_parameter_value().string_value
             or "body"
-        )
-        self._lidar_frame = (
-            self.get_parameter("lidar_frame").get_parameter_value().string_value
-            or "space_cobot/lidar_link"
-        )
-        self._sensor_frame = (
-            self.get_parameter("sensor_frame").get_parameter_value().string_value
-            or "space_cobot/lidar_link/lidar"
         )
         self._camera_frame = (
             self.get_parameter("camera_frame").get_parameter_value().string_value
@@ -100,15 +90,11 @@ class SpaceCobotTfPublisher(Node):
 
         self.get_logger().info(
             f"Space Cobot TF broadcaster active. Dynamic frame {self._world_frame} -> {self._base_frame}. "
-            "Static frames registered for lidar and camera."
+            "Static frames registered for camera."
         )
 
     def _publish_static_transforms(self) -> None:
         transforms = [
-            make_static_transform(self._base_frame, self._lidar_frame, (0.0, 0.0, 0.0)),
-            make_static_transform(
-                self._lidar_frame, self._sensor_frame, (0.0, 0.0, 0.0)
-            ),
             make_static_transform(
                 self._base_frame, self._camera_frame, (0.36, 0.0, 0.13)
             ),

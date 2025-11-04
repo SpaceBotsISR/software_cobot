@@ -109,5 +109,12 @@ def generate_launch_description():
                 parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
                 output="screen",
             ),
+            Node(
+                package="cobot_gz",
+                executable="cmd_bridge",
+                name="cmd_bridge",
+                parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
+                output="screen",
+            ),
         ]
     )
