@@ -11,7 +11,12 @@ def generate_launch_description():
         output="screen",
         remappings=[("cloud_in", "/main_camera/points")],
         parameters=[
-            {"resolution": 0.1, "max_range": 6.0, "frame_id": "map", "use_sim_time": True}
+            {
+                "resolution": 0.20,
+                "max_range": 6.0,
+                "frame_id": "map",
+                "use_sim_time": True,
+            }
         ],
     )
 

@@ -80,9 +80,6 @@ def generate_launch_description():
             *args,
             # Gazebo resource and plugin paths
             SetEnvironmentVariable("GZ_SIM_RESOURCE_PATH", resource_path),
-            SetEnvironmentVariable(
-                "GZ_SIM_PLUGIN_PATH", PathJoinSubstitution([cobot_gz_path, "plugins"])
-            ),
             SetEnvironmentVariable("XDG_RUNTIME_DIR", runtime_dir),
             # === Launch Gazebo ===
             IncludeLaunchDescription(

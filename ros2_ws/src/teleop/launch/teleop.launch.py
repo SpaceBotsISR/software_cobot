@@ -12,7 +12,7 @@ from launch_ros.actions import Node
 def generate_launch_description() -> LaunchDescription:
     cobot_gz_share = get_package_share_directory("cobot_gz")
     cobot_launch_share = get_package_share_directory("cobot_launch")
-    teleop_share = get_package_share_directory("teleop")
+    nav6d_share = get_package_share_directory("nav6d")
 
     cobot_gz_launch = PathJoinSubstitution(
         [cobot_gz_share, "launch", "cobot_gz.launch.py"]
@@ -20,8 +20,8 @@ def generate_launch_description() -> LaunchDescription:
     octomap_launch = PathJoinSubstitution(
         [cobot_launch_share, "launch", "octomap.launch.py"]
     )
-    local_planner_config = PathJoinSubstitution(
-        [teleop_share, "config", "local_planner.yaml"]
+    planner_launch = PathJoinSubstitution(
+        [nav6d_share, "launch", "n6d_planner.launch.py"]
     )
 
     return LaunchDescription(
@@ -35,13 +35,8 @@ def generate_launch_description() -> LaunchDescription:
                 output="log",
                 parameters=[{"use_sim_time": True}],
             ),
-            Node(
-                package="teleop",
-                executable="local_planner_node",
-                name="simple_local_planner",
-                namespace="teleop",
-                output="screen",
-                parameters=[local_planner_config, {"use_sim_time": True}],
-            ),
+            # IncludeLaunchDescription(
+            #     PythonLaunchDescriptionSource(planner_launch)
+            # ),
         ]
     )
