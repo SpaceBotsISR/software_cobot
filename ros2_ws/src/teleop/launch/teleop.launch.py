@@ -33,7 +33,15 @@ def generate_launch_description() -> LaunchDescription:
                 executable="teleop_node",
                 name="teleop_bridge",
                 output="log",
-                parameters=[{"use_sim_time": True}],
+                parameters=[
+                    {
+                        "use_sim_time": True,
+                        # Treat incoming UI commands as world-frame and rotate to body-frame
+                        "default_input_frame": "world",
+                        "command_frame": "body",
+                        "allow_cmd_frame_override": True,
+                    }
+                ],
             ),
             # IncludeLaunchDescription(
             #     PythonLaunchDescriptionSource(planner_launch)

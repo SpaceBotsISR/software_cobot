@@ -9,6 +9,8 @@ find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS imgcodecs imgproc)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ZMQ REQUIRED IMPORTED_TARGET libzmq)
@@ -36,12 +38,16 @@ ament_target_dependencies(
   geometry_msgs
   sensor_msgs
   cv_bridge
+  tf2_ros
+  tf2_geometry_msgs
 )
 
 target_link_libraries(
   teleop_node
   PkgConfig::ZMQ
   ${OpenCV_LIBRARIES}
+  tf2_ros::tf2_ros
+  tf2_geometry_msgs::tf2_geometry_msgs
 )
 
 target_include_directories(
