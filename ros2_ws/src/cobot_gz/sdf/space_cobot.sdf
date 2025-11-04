@@ -18,7 +18,6 @@
             <initial_linear>0 0 0</initial_linear>
             <initial_angular>0 0 0</initial_angular>
         </plugin>
-
         <pose>0 0 0 0 0 0</pose>
         <static>false</static>
 
@@ -78,55 +77,6 @@
 
         </link>
 
-        <link name='lidar_link'>
-            <pose>0 0 0.13 0 0 0</pose>
-            <inertial>
-                <mass>0.01</mass>
-                <inertia>
-                    <ixx>1e-6</ixx>
-                    <iyy>1e-6</iyy>
-                    <izz>1e-6</izz>
-                    <ixy>0</ixy>
-                    <ixz>0</ixz>
-                    <iyz>0</iyz>
-                </inertia>
-            </inertial>
-
-            <sensor name='lidar' type='gpu_lidar'>
-                <topic>/scan</topic>
-                <pose>0 0 0 0 0 0</pose>
-                <update_rate>20</update_rate>
-                <always_on>1</always_on>
-                <visualize>true</visualize>
-                <lidar>
-                    <scan>
-                        <horizontal>
-                            <samples>720</samples>
-                            <resolution>1</resolution>
-                            <min_angle>-3.14159</min_angle>
-                            <max_angle>3.14159</max_angle>
-                        </horizontal>
-                        <vertical>
-                            <samples>32</samples>
-                            <resolution>1</resolution>
-                            <min_angle>0</min_angle>
-                            <max_angle>0.523599</max_angle>
-                        </vertical>
-                    </scan>
-                    <range>
-                        <min>0.05</min>
-                        <max>30</max>
-                        <resolution>0.01</resolution>
-                    </range>
-                    <noise>
-                        <type>gaussian</type>
-                        <mean>0.0</mean>
-                        <stddev>0.01</stddev>
-                    </noise>
-                </lidar>
-            </sensor>
-        </link>
-
         <link name='depth_cam_link'>
             <pose>0.36 0 0.13 0 0 0</pose>
             <inertial>
@@ -165,11 +115,6 @@
                 </camera>
             </sensor>
         </link>
-
-        <joint name='body_to_lidar' type='fixed'>
-            <parent>body</parent>
-            <child>lidar_link</child>
-        </joint>
 
         <joint name='body_to_depth_cam' type='fixed'>
             <parent>body</parent>
