@@ -28,10 +28,6 @@
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
 // TF2
-#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
-#include <tf2_ros/buffer.h>
-#include <tf2_ros/transform_listener.h>
-#include <tf2/exceptions.h>
 
 namespace pt = boost::property_tree;
 using namespace std::chrono_literals;
@@ -155,9 +151,7 @@ class TeleopNode : public rclcpp::Node {
           context_(1),
           sensor_pub_(context_, ZMQ_PUB),
           image_pub_(context_, ZMQ_PUB),
-          cmd_sub_(context_, ZMQ_SUB),
-          tf_buffer_(this->get_clock()),
-          tf_listener_(tf_buffer_) {
+          cmd_sub_(context_, ZMQ_SUB) {
         declare_parameter<std::string>("teleop_bridge_sensor_endpoint", kDefaultSensorEndpoint);
         declare_parameter<std::string>("teleop_bridge_image_endpoint", kDefaultImageEndpoint);
         declare_parameter<std::string>("teleop_cmd_endpoint", kDefaultCommandEndpoint);
@@ -368,33 +362,6 @@ class TeleopNode : public rclcpp::Node {
                 }
             }
 
-            if (!command_frame_.empty() && !input_frame.empty() && input_frame != command_frame_) {
-                // Rotate vectors from input_frame -> command_frame using TF
-                const auto now_ros = this->get_clock()->now();
-                try {
-                    const auto tf = tf_buffer_.lookupTransform(
-                        command_frame_, input_frame, tf2::TimePointZero);
-
-                    geometry_msgs::msg::Vector3Stamped lin_in, lin_out;
-                    lin_in.header.frame_id = input_frame;
-                    lin_in.header.stamp = now_ros;
-                    lin_in.vector = twist.linear;
-                    tf2::doTransform(lin_in, lin_out, tf);
-                    twist.linear = lin_out.vector;
-
-                    geometry_msgs::msg::Vector3Stamped ang_in, ang_out;
-                    ang_in.header.frame_id = input_frame;
-                    ang_in.header.stamp = now_ros;
-                    ang_in.vector = twist.angular;
-                    tf2::doTransform(ang_in, ang_out, tf);
-                    twist.angular = ang_out.vector;
-                } catch (const tf2::TransformException& ex) {
-                    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000,
-                                         "cmd_vel transform %s->%s missing: %s (publishing untransformed)",
-                                         input_frame.c_str(), command_frame_.c_str(), ex.what());
-                }
-            }
-
             const auto now = std::chrono::steady_clock::now();
             if (last_cmd_time_) {
                 const auto dt = std::chrono::duration<double>(now - *last_cmd_time_).count();
@@ -429,8 +396,6 @@ class TeleopNode : public rclcpp::Node {
     std::string command_frame_;
     std::string default_input_frame_;
     bool allow_cmd_frame_override_{true};
-    tf2_ros::Buffer tf_buffer_;
-    tf2_ros::TransformListener tf_listener_;
 };
 
 int main(int argc, char** argv) {

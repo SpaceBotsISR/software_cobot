@@ -21,6 +21,7 @@ DEFAULT_BRIDGE = "ros_gz_bridge"
 DEFAULT_USE_COMPOSITION = True
 DEFAULT_CREATE_CONTAINER = True
 DEFAULT_USE_SIM_TIME = True
+DEFAULT_VEL_INPUT_FRAME = "body"
 
 
 def generate_launch_description():
@@ -44,6 +45,9 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             "use_sim_time", default_value=str(DEFAULT_USE_SIM_TIME).lower()
+        ),
+        DeclareLaunchArgument(
+            "vel_input_frame", default_value=DEFAULT_VEL_INPUT_FRAME
         ),
     ]
 
@@ -118,7 +122,12 @@ def generate_launch_description():
                 package="cobot_gz",
                 executable="cmd_bridge",
                 name="cmd_bridge",
-                parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
+                parameters=[
+                    {
+                        "use_sim_time": LaunchConfiguration("use_sim_time"),
+                        "vel_input_frame": LaunchConfiguration("vel_input_frame"),
+                    }
+                ],
                 output="screen",
             ),
         ]

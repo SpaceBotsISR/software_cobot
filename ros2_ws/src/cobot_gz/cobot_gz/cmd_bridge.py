@@ -26,6 +26,7 @@ class CmdBridge(Node):
         self.declare_parameter("vel_publish_period", 0.05)
         self.declare_parameter("force_topic", "/space_cobot/cmd_force")
         self.declare_parameter("vel_topic", "/space_cobot/cmd_vel")
+        self.declare_parameter("vel_input_frame", "")
         self.declare_parameter("vel_output_topic", "/space_cobot/cmd_vel_world")
         self.declare_parameter(
             "force_output_topic", "/world/default/wrench/persistent"
@@ -38,6 +39,12 @@ class CmdBridge(Node):
         self._command_frame = (
             self.get_parameter("command_frame").get_parameter_value().string_value
             or "body"
+        )
+        vel_input_frame_param = (
+            self.get_parameter("vel_input_frame").get_parameter_value().string_value
+        )
+        self._vel_input_frame = (
+            vel_input_frame_param or self._command_frame
         )
         force_period = float(
             self.get_parameter("force_publish_period")
@@ -113,10 +120,11 @@ class CmdBridge(Node):
         self._last_wrench = deepcopy(msg)
 
     def _handle_velocity(self, msg: Twist) -> None:
-        self._last_twist = deepcopy(msg)
+        twist = deepcopy(msg)
+        self._last_twist = self._convert_twist_to_command_frame(twist)
 
     def _publish_current_wrench(self) -> None:
-        transform = self._lookup_transform()
+        transform = self._lookup_transform(self._world_frame, self._command_frame)
         if transform is None:
             return
 
@@ -131,45 +139,68 @@ class CmdBridge(Node):
         entity_wrench.entity = entity
 
         entity_wrench.wrench.force = self._transform_vector(
-            self._last_wrench.force, transform
+            self._last_wrench.force, transform, self._command_frame
         )
         entity_wrench.wrench.torque = self._transform_vector(
-            self._last_wrench.torque, transform
+            self._last_wrench.torque, transform, self._command_frame
         )
         self._force_publisher.publish(entity_wrench)
 
     def _publish_current_twist(self) -> None:
-        transform = self._lookup_transform()
+        transform = self._lookup_transform(self._world_frame, self._command_frame)
         if transform is None:
             return
 
         rotated = Twist()
-        rotated.linear = self._transform_vector(self._last_twist.linear, transform)
-        rotated.angular = self._transform_vector(self._last_twist.angular, transform)
+        rotated.linear = self._transform_vector(
+            self._last_twist.linear, transform, self._command_frame
+        )
+        rotated.angular = self._transform_vector(
+            self._last_twist.angular, transform, self._command_frame
+        )
         self._vel_publisher.publish(rotated)
 
-    def _lookup_transform(self):
+    def _lookup_transform(self, target_frame: str, source_frame: str):
         try:
             return self._tf_buffer.lookup_transform(
-                self._world_frame,
-                self._command_frame,
+                target_frame,
+                source_frame,
                 Time(),
             )
         except TransformException as exc:
             self.get_logger().warn(
-                f"Missing transform {self._command_frame} -> {self._world_frame}: {exc}",
+                f"Missing transform {source_frame} -> {target_frame}: {exc}",
                 throttle_duration_sec=5.0,
             )
             return None
 
-    def _transform_vector(self, vector, transform):
+    def _transform_vector(self, vector, transform, source_frame: str):
         stamped = Vector3Stamped()
         stamped.header.stamp = self.get_clock().now().to_msg()
-        stamped.header.frame_id = self._command_frame
+        stamped.header.frame_id = source_frame
         stamped.vector = vector
 
         transformed = do_transform_vector3(stamped, transform)
         return transformed.vector
+
+    def _convert_twist_to_command_frame(self, twist: Twist) -> Twist:
+        if self._vel_input_frame == self._command_frame:
+            return twist
+
+        transform = self._lookup_transform(
+            self._command_frame, self._vel_input_frame
+        )
+        if transform is None:
+            return twist
+
+        converted = Twist()
+        converted.linear = self._transform_vector(
+            twist.linear, transform, self._vel_input_frame
+        )
+        converted.angular = self._transform_vector(
+            twist.angular, transform, self._vel_input_frame
+        )
+        return converted
 
 def main(args: list[str] | None = None) -> None:
     rclpy.init(args=args)

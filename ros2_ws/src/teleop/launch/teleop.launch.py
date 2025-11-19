@@ -26,7 +26,10 @@ def generate_launch_description() -> LaunchDescription:
 
     return LaunchDescription(
         [
-            IncludeLaunchDescription(PythonLaunchDescriptionSource(cobot_gz_launch)),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(cobot_gz_launch),
+                launch_arguments={"vel_input_frame": "world"}.items(),
+            ),
             IncludeLaunchDescription(PythonLaunchDescriptionSource(octomap_launch)),
             Node(
                 package="teleop",
