@@ -164,7 +164,8 @@ class TeleopNode : public rclcpp::Node {
         declare_parameter<int>("jpeg_quality", 80);
         declare_parameter<std::string>("command_frame", "body");
         declare_parameter<std::string>("default_input_frame", "body");
-        declare_parameter<bool>("allow_cmd_frame_override", true);
+        // Teleop inputs are always interpreted in the default frame.
+        declare_parameter<bool>("allow_cmd_frame_override", false);
 
         const auto sensor_endpoint = get_parameter("teleop_bridge_sensor_endpoint").as_string();
         const auto image_endpoint = get_parameter("teleop_bridge_image_endpoint").as_string();
@@ -194,7 +195,7 @@ class TeleopNode : public rclcpp::Node {
 
         command_frame_ = get_parameter("command_frame").as_string();
         default_input_frame_ = get_parameter("default_input_frame").as_string();
-        allow_cmd_frame_override_ = get_parameter("allow_cmd_frame_override").as_bool();
+        allow_cmd_frame_override_ = false;
 
         RCLCPP_INFO(get_logger(),
                     "Teleop bridge PUB sensors on %s; images on %s; commands SUB on %s (cmd frame=%s, default input=%s)",

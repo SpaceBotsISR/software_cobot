@@ -36,9 +36,8 @@ def generate_launch_description() -> LaunchDescription:
                 parameters=[
                     {
                         "use_sim_time": True,
-                        # Treat incoming UI commands as world-frame and rotate to body-frame
                         "default_input_frame": "world",
-                        "command_frame": "body",
+                        "command_frame": "body",  # Treat incoming UI commands as world-frame and rotate to body-frame
                         "allow_cmd_frame_override": True,
                     }
                 ],

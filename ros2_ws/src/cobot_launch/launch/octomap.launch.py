@@ -14,7 +14,7 @@ def generate_launch_description():
             {
                 "resolution": 0.20,
                 "max_range": 6.0,
-                "frame_id": "map",
+                "frame_id": "world",
                 "use_sim_time": True,
             }
         ],

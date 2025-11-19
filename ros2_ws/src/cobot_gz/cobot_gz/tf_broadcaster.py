@@ -8,6 +8,7 @@ from typing import List
 
 import rclpy
 from geometry_msgs.msg import PoseStamped, TransformStamped
+from rclpy.duration import Duration
 from rclpy.node import Node
 from tf2_ros import StaticTransformBroadcaster, TransformBroadcaster
 
@@ -55,6 +56,7 @@ class SpaceCobotTfPublisher(Node):
             "depth_sensor_frame", "space_cobot/depth_cam_link/depth_camera"
         )
         self.declare_parameter("map_frame", "map")
+        self.declare_parameter("tf_publish_rate_hz", 100.0)
 
         self._world_frame = (
             self.get_parameter("world_frame").get_parameter_value().string_value
@@ -75,6 +77,15 @@ class SpaceCobotTfPublisher(Node):
         self._map_frame = (
             self.get_parameter("map_frame").get_parameter_value().string_value or ""
         )
+        tf_rate = (
+            self.get_parameter("tf_publish_rate_hz")
+            .get_parameter_value()
+            .double_value
+        )
+        self._tf_publish_period = (
+            Duration(seconds=1.0 / tf_rate) if tf_rate > 0.0 else None
+        )
+        self._last_tf_publish_time = None
 
         self._tf_broadcaster = TransformBroadcaster(self)
         self._static_broadcaster = StaticTransformBroadcaster(self)
@@ -122,6 +133,15 @@ class SpaceCobotTfPublisher(Node):
         transform.header.stamp = msg.header.stamp
         if transform.header.stamp.sec == 0 and transform.header.stamp.nanosec == 0:
             transform.header.stamp = self.get_clock().now().to_msg()
+        publish_time = self.get_clock().now()
+        if self._tf_publish_period is not None:
+            if (
+                self._last_tf_publish_time is not None
+                and (publish_time - self._last_tf_publish_time)
+                < self._tf_publish_period
+            ):
+                return
+            self._last_tf_publish_time = publish_time
         transform.header.frame_id = self._world_frame
         transform.child_frame_id = self._base_frame
         transform.transform.translation.x = msg.pose.position.x

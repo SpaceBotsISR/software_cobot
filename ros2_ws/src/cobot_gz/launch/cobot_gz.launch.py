@@ -106,7 +106,12 @@ def generate_launch_description():
                 package="cobot_gz",
                 executable="space_cobot_tf_broadcaster",
                 name="space_cobot_tf_broadcaster",
-                parameters=[{"use_sim_time": LaunchConfiguration("use_sim_time")}],
+                parameters=[
+                    {
+                        "use_sim_time": LaunchConfiguration("use_sim_time"),
+                        "map_frame": "world",
+                    }
+                ],
                 output="screen",
             ),
             Node(
