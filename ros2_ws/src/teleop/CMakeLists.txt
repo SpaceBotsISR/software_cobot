@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(tf2_ros REQUIRED)
@@ -36,6 +37,7 @@ ament_target_dependencies(
   teleop_node
   rclcpp
   geometry_msgs
+  nav_msgs
   sensor_msgs
   cv_bridge
   tf2_ros

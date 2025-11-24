@@ -21,6 +21,7 @@
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
@@ -132,6 +133,54 @@ pt::ptree pose_to_ptree(const geometry_msgs::msg::Pose& pose) {
     return tree;
 }
 
+pt::ptree pose_stamped_to_ptree(const geometry_msgs::msg::PoseStamped& pose_stamped) {
+    pt::ptree tree;
+    tree.add_child("header", header_to_ptree(pose_stamped.header));
+    tree.add_child("pose", pose_to_ptree(pose_stamped.pose));
+    return tree;
+}
+
+pt::ptree path_to_ptree(const nav_msgs::msg::Path& path_msg) {
+    pt::ptree tree;
+    tree.add_child("header", header_to_ptree(path_msg.header));
+    pt::ptree poses_tree;
+    for (const auto& pose : path_msg.poses) {
+        poses_tree.push_back(std::make_pair("", pose_stamped_to_ptree(pose)));
+    }
+    tree.add_child("poses", poses_tree);
+    return tree;
+}
+
+geometry_msgs::msg::Pose ptree_to_pose(const pt::ptree& pose_tree) {
+    const pt::ptree* source = &pose_tree;
+    if (auto nested = pose_tree.get_child_optional("pose")) {
+        source = &nested.get();
+    }
+
+    auto get_coord = [source](const std::string& key, const std::string& alt_key,
+                              double default_value) {
+        if (const auto first = source->get_optional<double>(key)) {
+            return *first;
+        }
+        if (!alt_key.empty()) {
+            if (const auto second = source->get_optional<double>(alt_key)) {
+                return *second;
+            }
+        }
+        return default_value;
+    };
+
+    geometry_msgs::msg::Pose pose;
+    pose.position.x = get_coord("position.x", "x", 0.0);
+    pose.position.y = get_coord("position.y", "y", 0.0);
+    pose.position.z = get_coord("position.z", "z", 0.0);
+    pose.orientation.x = get_coord("orientation.x", "qx", 0.0);
+    pose.orientation.y = get_coord("orientation.y", "qy", 0.0);
+    pose.orientation.z = get_coord("orientation.z", "qz", 0.0);
+    pose.orientation.w = get_coord("orientation.w", "qw", 1.0);
+    return pose;
+}
+
 std::string ptree_to_compact_json(const pt::ptree& tree) {
     std::ostringstream oss;
     pt::write_json(oss, tree, false);
@@ -181,11 +230,17 @@ class TeleopNode : public rclcpp::Node {
             "/space_cobot/pose", 10,
             [this](geometry_msgs::msg::PoseStamped::ConstSharedPtr msg) { handle_pose(msg); });
 
+        nav_path_sub_ = create_subscription<nav_msgs::msg::Path>(
+            "/nav6d/planner/path", 10,
+            [this](nav_msgs::msg::Path::ConstSharedPtr msg) { handle_nav6d_path(msg); });
+
         image_sub_ = create_subscription<sensor_msgs::msg::Image>(
             "/main_camera/image", 10,
             [this](sensor_msgs::msg::Image::ConstSharedPtr msg) { handle_image(msg); });
 
         cmd_timer_ = create_wall_timer(10ms, [this]() { poll_command_bus(); });
+
+        nav_goal_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("/nav6d/goal", 10);
 
         command_frame_ = get_parameter("command_frame").as_string();
         default_input_frame_ = get_parameter("default_input_frame").as_string();
@@ -261,6 +316,14 @@ class TeleopNode : public rclcpp::Node {
         publish_payload("/space_cobot/pose", payload, false);
     }
 
+    void handle_nav6d_path(nav_msgs::msg::Path::ConstSharedPtr msg) {
+        if (!msg) {
+            return;
+        }
+        const auto payload = path_to_ptree(*msg);
+        publish_payload("/nav6d/planner/path", payload, false);
+    }
+
     void handle_image(sensor_msgs::msg::Image::ConstSharedPtr msg) {
         auto payload = pt::ptree{};
         payload.put("width", msg->width);
@@ -332,29 +395,39 @@ class TeleopNode : public rclcpp::Node {
             pt::ptree root;
             pt::read_json(iss, root);
             const auto topic = root.get<std::string>("topic", "");
-            if (topic != "/space_cobot/cmd_vel") {
-                return;
-            }
-
             const auto data = root.get_child_optional("data");
             if (!data) {
                 return;
             }
 
+            if (topic == "/space_cobot/cmd_vel") {
+                handle_cmd_vel_command(root, *data);
+            } else if (topic == "/nav6d/goal") {
+                handle_nav6d_goal_command(*data);
+            }
+        } catch (const pt::json_parser_error& e) {
+            RCLCPP_WARN(get_logger(), "Failed to parse teleop command JSON: %s", e.what());
+        } catch (const std::exception& e) {
+            RCLCPP_WARN(get_logger(), "Failed to process teleop command: %s", e.what());
+        }
+    }
+
+    void handle_cmd_vel_command(const pt::ptree& root, const pt::ptree& data) {
+        try {
             auto twist = geometry_msgs::msg::Twist();
-            twist.linear.x = data->get<double>("linear.x", 0.0);
-            twist.linear.y = data->get<double>("linear.y", 0.0);
-            twist.linear.z = data->get<double>("linear.z", 0.0);
-            twist.angular.x = data->get<double>("angular.x", 0.0);
-            twist.angular.y = data->get<double>("angular.y", 0.0);
-            twist.angular.z = data->get<double>("angular.z", 0.0);
+            twist.linear.x = data.get<double>("linear.x", 0.0);
+            twist.linear.y = data.get<double>("linear.y", 0.0);
+            twist.linear.z = data.get<double>("linear.z", 0.0);
+            twist.angular.x = data.get<double>("angular.x", 0.0);
+            twist.angular.y = data.get<double>("angular.y", 0.0);
+            twist.angular.z = data.get<double>("angular.z", 0.0);
 
             // Determine input frame: optional override from JSON, else default param.
             std::string input_frame = default_input_frame_;
             if (allow_cmd_frame_override_) {
                 // Check at root level or inside data
                 const auto root_frame = root.get_optional<std::string>("frame_id");
-                const auto data_frame = data->get_optional<std::string>("frame_id");
+                const auto data_frame = data.get_optional<std::string>("frame_id");
                 if (root_frame && !root_frame->empty()) {
                     input_frame = *root_frame;
                 } else if (data_frame && !data_frame->empty()) {
@@ -371,10 +444,31 @@ class TeleopNode : public rclcpp::Node {
             }
             last_cmd_time_ = now;
             cmd_vel_pub_->publish(twist);
-        } catch (const pt::json_parser_error& e) {
-            RCLCPP_WARN(get_logger(), "Failed to parse teleop command JSON: %s", e.what());
         } catch (const std::exception& e) {
-            RCLCPP_WARN(get_logger(), "Failed to process teleop command: %s", e.what());
+            RCLCPP_WARN(get_logger(), "Failed to process /space_cobot/cmd_vel command: %s",
+                        e.what());
+        }
+    }
+
+    void handle_nav6d_goal_command(const pt::ptree& data) {
+        try {
+            geometry_msgs::msg::PoseStamped goal_msg;
+            goal_msg.header.stamp = now();
+            goal_msg.header.frame_id = "world";
+
+            if (const auto header = data.get_child_optional("header")) {
+                goal_msg.header.frame_id =
+                    header->get<std::string>("frame_id", goal_msg.header.frame_id);
+            } else if (const auto frame = data.get_optional<std::string>("frame_id")) {
+                goal_msg.header.frame_id = *frame;
+            }
+
+            goal_msg.pose = ptree_to_pose(data);
+            nav_goal_pub_->publish(goal_msg);
+            RCLCPP_INFO(get_logger(), "Forwarded /nav6d/goal (%s frame)",
+                        goal_msg.header.frame_id.c_str());
+        } catch (const std::exception& e) {
+            RCLCPP_WARN(get_logger(), "Failed to process /nav6d/goal command: %s", e.what());
         }
     }
 
@@ -384,8 +478,10 @@ class TeleopNode : public rclcpp::Node {
     zmq::socket_t cmd_sub_;
 
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr nav_goal_pub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
+    rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr nav_path_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::TimerBase::SharedPtr cmd_timer_;
 
