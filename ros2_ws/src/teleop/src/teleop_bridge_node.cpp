@@ -18,6 +18,7 @@
 #define BOOST_BIND_GLOBAL_PLACEHOLDERS
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/property_tree/ptree.hpp>
+#include <builtin_interfaces/msg/time.hpp>
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
@@ -25,6 +26,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
+#include <std_msgs/msg/header.hpp>
 #include <zmq.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -105,6 +107,22 @@ pt::ptree header_to_ptree(const std_msgs::msg::Header& header) {
     return tree;
 }
 
+builtin_interfaces::msg::Time ptree_to_time(const pt::ptree& time_tree) {
+    builtin_interfaces::msg::Time time_msg;
+    time_msg.sec = time_tree.get<int32_t>("sec", 0);
+    time_msg.nanosec = time_tree.get<uint32_t>("nanosec", 0);
+    return time_msg;
+}
+
+std_msgs::msg::Header ptree_to_header(const pt::ptree& header_tree) {
+    std_msgs::msg::Header header;
+    if (const auto stamp_tree = header_tree.get_child_optional("stamp")) {
+        header.stamp = ptree_to_time(*stamp_tree);
+    }
+    header.frame_id = header_tree.get<std::string>("frame_id", header.frame_id);
+    return header;
+}
+
 pt::ptree quaternion_to_ptree(const geometry_msgs::msg::Quaternion& quat) {
     pt::ptree tree;
     tree.put("x", quat.x);
@@ -181,6 +199,34 @@ geometry_msgs::msg::Pose ptree_to_pose(const pt::ptree& pose_tree) {
     return pose;
 }
 
+geometry_msgs::msg::PoseStamped ptree_to_pose_stamped(const pt::ptree& pose_tree) {
+    geometry_msgs::msg::PoseStamped pose_stamped;
+    if (const auto header_tree = pose_tree.get_child_optional("header")) {
+        pose_stamped.header = ptree_to_header(*header_tree);
+    }
+    pose_stamped.pose = ptree_to_pose(pose_tree);
+    return pose_stamped;
+}
+
+nav_msgs::msg::Path ptree_to_path(const pt::ptree& path_tree) {
+    nav_msgs::msg::Path path_msg;
+
+    if (const auto header_tree = path_tree.get_child_optional("header")) {
+        path_msg.header = ptree_to_header(*header_tree);
+    }
+    path_msg.header.frame_id = path_tree.get<std::string>("frame_id", path_msg.header.frame_id);
+    if (path_msg.header.frame_id.empty()) {
+        path_msg.header.frame_id = "world";
+    }
+
+    if (const auto poses_tree = path_tree.get_child_optional("poses")) {
+        for (const auto& pose_node : *poses_tree) {
+            path_msg.poses.push_back(ptree_to_pose_stamped(pose_node.second));
+        }
+    }
+    return path_msg;
+}
+
 std::string ptree_to_compact_json(const pt::ptree& tree) {
     std::ostringstream oss;
     pt::write_json(oss, tree, false);
@@ -221,6 +267,7 @@ class TeleopNode : public rclcpp::Node {
         configure_cmd_socket(cmd_sub_, cmd_endpoint);
 
         cmd_vel_pub_ = create_publisher<geometry_msgs::msg::Twist>("/space_cobot/cmd_vel", 10);
+        nav_path_pub_ = create_publisher<nav_msgs::msg::Path>("/nav6d/planner/path", 10);
 
         imu_sub_ = create_subscription<sensor_msgs::msg::Imu>(
             "/imu/data", 10,
@@ -233,6 +280,10 @@ class TeleopNode : public rclcpp::Node {
         nav_path_sub_ = create_subscription<nav_msgs::msg::Path>(
             "/nav6d/planner/path", 10,
             [this](nav_msgs::msg::Path::ConstSharedPtr msg) { handle_nav6d_path(msg); });
+
+        cmd_vel_sub_ = create_subscription<geometry_msgs::msg::Twist>(
+            "/space_cobot/cmd_vel", 10,
+            [this](geometry_msgs::msg::Twist::ConstSharedPtr msg) { handle_cmd_vel(msg); });
 
         image_sub_ = create_subscription<sensor_msgs::msg::Image>(
             "/main_camera/image", 10,
@@ -324,6 +375,20 @@ class TeleopNode : public rclcpp::Node {
         publish_payload("/nav6d/planner/path", payload, false);
     }
 
+    void handle_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr msg) {
+        if (!msg) {
+            return;
+        }
+        pt::ptree payload;
+        payload.put("linear.x", msg->linear.x);
+        payload.put("linear.y", msg->linear.y);
+        payload.put("linear.z", msg->linear.z);
+        payload.put("angular.x", msg->angular.x);
+        payload.put("angular.y", msg->angular.y);
+        payload.put("angular.z", msg->angular.z);
+        publish_payload("/space_cobot/cmd_vel", payload, false);
+    }
+
     void handle_image(sensor_msgs::msg::Image::ConstSharedPtr msg) {
         auto payload = pt::ptree{};
         payload.put("width", msg->width);
@@ -404,6 +469,8 @@ class TeleopNode : public rclcpp::Node {
                 handle_cmd_vel_command(root, *data);
             } else if (topic == "/nav6d/goal") {
                 handle_nav6d_goal_command(*data);
+            } else if (topic == "/nav6d/planner/path") {
+                handle_nav6d_path_command(*data);
             }
         } catch (const pt::json_parser_error& e) {
             RCLCPP_WARN(get_logger(), "Failed to parse teleop command JSON: %s", e.what());
@@ -472,12 +539,32 @@ class TeleopNode : public rclcpp::Node {
         }
     }
 
+    void handle_nav6d_path_command(const pt::ptree& data) {
+        try {
+            auto path_msg = ptree_to_path(data);
+            if (path_msg.header.stamp.sec == 0 && path_msg.header.stamp.nanosec == 0) {
+                path_msg.header.stamp = now();
+            }
+            if (path_msg.header.frame_id.empty()) {
+                path_msg.header.frame_id = "world";
+            }
+            nav_path_pub_->publish(path_msg);
+            RCLCPP_INFO(get_logger(), "Forwarded /nav6d/planner/path (%zu poses)",
+                        path_msg.poses.size());
+        } catch (const std::exception& e) {
+            RCLCPP_WARN(get_logger(), "Failed to process /nav6d/planner/path command: %s",
+                        e.what());
+        }
+    }
+
     zmq::context_t context_;
     zmq::socket_t sensor_pub_;
     zmq::socket_t image_pub_;
     zmq::socket_t cmd_sub_;
 
     rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_pub_;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr nav_path_pub_;
+    rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr cmd_vel_sub_;
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr nav_goal_pub_;
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
