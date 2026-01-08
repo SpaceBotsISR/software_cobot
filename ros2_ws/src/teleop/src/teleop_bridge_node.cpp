@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstdio>
 #include <iomanip>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -32,6 +33,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <tf2/LinearMath/Quaternion.h>
 #include <tf2/LinearMath/Vector3.h>
 #include <zmq.hpp>
 #include <opencv2/imgcodecs.hpp>
@@ -419,11 +421,33 @@ class TeleopNode : public rclcpp::Node {
             return;
         }
         const auto& p = pose_msg.pose.position;
+        const auto& q = pose_msg.pose.orientation;
+        const tf2::Quaternion quat(q.x, q.y, q.z, q.w);
+        const tf2::Vector3 local_down(0.0, 0.0, -1.0);
+        const tf2::Vector3 down_world = tf2::quatRotate(quat, local_down).normalized();
+
         struct AxisChoice {
             tf2::Vector3 axis;
             const char* name;
         };
-        const AxisChoice best_axis{tf2::Vector3(0.0, 0.0, -1.0), "-z"};
+        const std::array<AxisChoice, 6> axes = {
+            AxisChoice{tf2::Vector3(1.0, 0.0, 0.0), "x"},
+            AxisChoice{tf2::Vector3(-1.0, 0.0, 0.0), "-x"},
+            AxisChoice{tf2::Vector3(0.0, 1.0, 0.0), "y"},
+            AxisChoice{tf2::Vector3(0.0, -1.0, 0.0), "-y"},
+            AxisChoice{tf2::Vector3(0.0, 0.0, 1.0), "z"},
+            AxisChoice{tf2::Vector3(0.0, 0.0, -1.0), "-z"},
+        };
+
+        double best_dot = -std::numeric_limits<double>::infinity();
+        AxisChoice best_axis = axes.front();
+        for (const auto& candidate : axes) {
+            const double dot = down_world.dot(candidate.axis);
+            if (dot > best_dot) {
+                best_dot = dot;
+                best_axis = candidate;
+            }
+        }
 
         const octomap::point3d origin(
             static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z));
