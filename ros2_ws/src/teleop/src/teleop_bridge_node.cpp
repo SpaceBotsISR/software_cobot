@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <iomanip>
 #include <memory>
 #include <optional>
 #include <string>
@@ -23,10 +24,15 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
 #include <nav_msgs/msg/path.hpp>
+#include <octomap/OcTree.h>
+#include <octomap/octomap.h>
+#include <octomap_msgs/conversions.h>
+#include <octomap_msgs/msg/octomap.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 #include <std_msgs/msg/header.hpp>
+#include <tf2/LinearMath/Vector3.h>
 #include <zmq.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/imgproc.hpp>
@@ -237,6 +243,13 @@ std::string ptree_to_compact_json(const pt::ptree& tree) {
     return json;
 }
 
+double euclidean(const octomap::point3d& a, const octomap::point3d& b) {
+    const double dx = a.x() - b.x();
+    const double dy = a.y() - b.y();
+    const double dz = a.z() - b.z();
+    return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
 }  // namespace
 
 class TeleopNode : public rclcpp::Node {
@@ -281,6 +294,10 @@ class TeleopNode : public rclcpp::Node {
             "/nav6d/planner/path", 10,
             [this](nav_msgs::msg::Path::ConstSharedPtr msg) { handle_nav6d_path(msg); });
 
+        octomap_sub_ = create_subscription<octomap_msgs::msg::Octomap>(
+            "/octomap_full", 1,
+            [this](octomap_msgs::msg::Octomap::ConstSharedPtr msg) { handle_octomap(msg); });
+
         cmd_vel_sub_ = create_subscription<geometry_msgs::msg::Twist>(
             "/space_cobot/cmd_vel", 10,
             [this](geometry_msgs::msg::Twist::ConstSharedPtr msg) { handle_cmd_vel(msg); });
@@ -290,6 +307,11 @@ class TeleopNode : public rclcpp::Node {
             [this](sensor_msgs::msg::Image::ConstSharedPtr msg) { handle_image(msg); });
 
         cmd_timer_ = create_wall_timer(10ms, [this]() { poll_command_bus(); });
+        floor_timer_ = create_wall_timer(200ms, [this]() {
+            if (last_pose_) {
+                publish_floor_height(*last_pose_);
+            }
+        });
 
         nav_goal_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("/nav6d/goal", 10);
 
@@ -365,6 +387,8 @@ class TeleopNode : public rclcpp::Node {
         payload.add_child("header", header_to_ptree(msg->header));
         payload.add_child("pose", pose_to_ptree(msg->pose));
         publish_payload("/space_cobot/pose", payload, false);
+        last_pose_ = *msg;
+        publish_floor_height(*msg);
     }
 
     void handle_nav6d_path(nav_msgs::msg::Path::ConstSharedPtr msg) {
@@ -373,6 +397,61 @@ class TeleopNode : public rclcpp::Node {
         }
         const auto payload = path_to_ptree(*msg);
         publish_payload("/nav6d/planner/path", payload, false);
+    }
+
+    void handle_octomap(octomap_msgs::msg::Octomap::ConstSharedPtr msg) {
+        if (!msg) {
+            return;
+        }
+        std::unique_ptr<octomap::AbstractOcTree> abstract(octomap_msgs::msgToMap(*msg));
+        auto* as_oc = dynamic_cast<octomap::OcTree*>(abstract.get());
+        if (!as_oc) {
+            return;
+        }
+        abstract.release();
+        octree_.reset(as_oc);
+    }
+
+    void publish_floor_height(const geometry_msgs::msg::PoseStamped& pose_msg) {
+        if (!octree_) {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 10000,
+                                 "No octomap available for floor height measurement.");
+            return;
+        }
+        const auto& p = pose_msg.pose.position;
+        struct AxisChoice {
+            tf2::Vector3 axis;
+            const char* name;
+        };
+        const AxisChoice best_axis{tf2::Vector3(0.0, 0.0, -1.0), "-z"};
+
+        const octomap::point3d origin(
+            static_cast<float>(p.x), static_cast<float>(p.y), static_cast<float>(p.z));
+        const octomap::point3d direction(static_cast<float>(best_axis.axis.x()),
+                                         static_cast<float>(best_axis.axis.y()),
+                                         static_cast<float>(best_axis.axis.z()));
+
+        octomap::point3d hit;
+        const double max_range = 100.0;
+        if (octree_->castRay(origin, direction, hit, true, max_range)) {
+            const double dist = euclidean(origin, hit);
+            std::ostringstream oss;
+            oss.setf(std::ios::fixed);
+            oss << best_axis.name << std::setprecision(2) << dist;
+            last_floor_reading_ = oss.str();
+        } else {
+            RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 3000,
+                                 "Floor raycast failed (origin=%.2f %.2f %.2f, dir=%s)", p.x,
+                                 p.y, p.z, best_axis.name);
+        }
+
+        if (!last_floor_reading_.empty()) {
+            pt::ptree payload;
+            payload.put("value", last_floor_reading_);
+            publish_payload("/floor_height", payload, false);
+            RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 5000,
+                            "Published floor height reading: %s", last_floor_reading_.c_str());
+        }
     }
 
     void handle_cmd_vel(geometry_msgs::msg::Twist::ConstSharedPtr msg) {
@@ -532,8 +611,6 @@ class TeleopNode : public rclcpp::Node {
 
             goal_msg.pose = ptree_to_pose(data);
             nav_goal_pub_->publish(goal_msg);
-            RCLCPP_INFO(get_logger(), "Forwarded /nav6d/goal (%s frame)",
-                        goal_msg.header.frame_id.c_str());
         } catch (const std::exception& e) {
             RCLCPP_WARN(get_logger(), "Failed to process /nav6d/goal command: %s", e.what());
         }
@@ -569,11 +646,16 @@ class TeleopNode : public rclcpp::Node {
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr nav_path_sub_;
+    rclcpp::Subscription<octomap_msgs::msg::Octomap>::SharedPtr octomap_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::TimerBase::SharedPtr cmd_timer_;
+    rclcpp::TimerBase::SharedPtr floor_timer_;
 
     std::optional<std::chrono::steady_clock::time_point> last_cmd_time_;
     int jpeg_quality_{80};
+    std::shared_ptr<octomap::OcTree> octree_;
+    std::string last_floor_reading_;
+    std::optional<geometry_msgs::msg::PoseStamped> last_pose_;
 
     // Frames and TF
     std::string command_frame_;

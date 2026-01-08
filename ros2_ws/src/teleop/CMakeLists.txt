@@ -12,6 +12,8 @@ find_package(sensor_msgs REQUIRED)
 find_package(cv_bridge REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(octomap REQUIRED)
+find_package(octomap_msgs REQUIRED)
 find_package(OpenCV REQUIRED COMPONENTS imgcodecs imgproc)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(ZMQ REQUIRED IMPORTED_TARGET libzmq)
@@ -42,6 +44,8 @@ ament_target_dependencies(
   cv_bridge
   tf2_ros
   tf2_geometry_msgs
+  octomap
+  octomap_msgs
 )
 
 target_link_libraries(

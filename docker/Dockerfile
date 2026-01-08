@@ -27,12 +27,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ros-humble-ros-base \
     ros-humble-diagnostic-updater \
     ros-humble-tf2-ros ros-humble-tf2-geometry-msgs ros-humble-tf-transformations \
-    ros-humble-pluginlib ros-humble-class-loader ros-humble-nodelet2 \
+    ros-humble-pluginlib ros-humble-class-loader \
     # Messages, geometry, and math
     ros-humble-geometry-msgs ros-humble-sensor-msgs ros-humble-std-msgs ros-humble-nav-msgs \
     ros-humble-angles ros-humble-geometry2 \
     # Control + Navigation
-    ros-humble-nav2-bringup ros-humble-nav2-core ros-humble-nav2-utils ros-humble-nav2-costmap-2d \
+    ros-humble-nav2-bringup ros-humble-nav2-core ros-humble-nav2-costmap-2d \
     ros-humble-nav2-map-server ros-humble-nav2-planner ros-humble-nav2-controller ros-humble-nav2-waypoint-follower \
     ros-humble-ros2-control ros-humble-ros2-controllers ros-humble-joint-state-publisher ros-humble-joint-state-broadcaster \
     # Perception + Image

@@ -17,6 +17,8 @@
   <build_depend>sensor_msgs</build_depend>
   <build_depend>tf2_ros</build_depend>
   <build_depend>tf2_geometry_msgs</build_depend>
+  <build_depend>octomap</build_depend>
+  <build_depend>octomap_msgs</build_depend>
 
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>opencv</exec_depend>
@@ -26,6 +28,8 @@
   <exec_depend>sensor_msgs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
   <exec_depend>tf2_geometry_msgs</exec_depend>
+  <exec_depend>octomap</exec_depend>
+  <exec_depend>octomap_msgs</exec_depend>
 
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
