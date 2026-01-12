@@ -15,18 +15,27 @@
         </geometry>
       </visual>
 
-      <!-- SIMPLE COLLISION (DO NOT use full mesh) -->
+      <!-- COLLISION -->
       <collision name="iss_collision">
         <geometry>
-          <box>
-            <size>3 1.5 1.5</size>
-          </box>
+          <mesh>
+            <uri>../meshes/iss/iss.obj</uri>
+            <scale>0.1 0.1 0.1</scale>
+          </mesh>
         </geometry>
+        <surface>
+          <friction>
+            <ode>
+              <mu>1.0</mu>
+              <mu2>1.0</mu2>
+            </ode>
+          </friction>
+        </surface>
       </collision>
 
       <!-- INTERIOR LIGHT -->
       <light name="iss_light_1" type="point">
-        <pose>0 0 0.3 0 0 0</pose>
+        <pose>0 0 3 0 0 0</pose>
         <diffuse>1 1 1 1</diffuse>
         <specular>0.2 0.2 0.2 1</specular>
         <attenuation>
@@ -39,7 +48,7 @@
 
       <!-- SECOND FILL LIGHT -->
       <light name="iss_light_2" type="point">
-        <pose>1 0 0.3 0 0 0</pose>
+        <pose>10 0 3 0 0 0</pose>
         <diffuse>0.6 0.6 0.6 1</diffuse>
         <attenuation>
           <range>40</range>
