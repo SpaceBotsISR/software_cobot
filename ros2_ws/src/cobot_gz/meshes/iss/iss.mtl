@@ -1,0 +1,317 @@
+# Blender 5.0.1 MTL File: 'None'
+# www.blender.org
+
+newmtl Airlock_1
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Airlock_1_Diffuse.png
+
+newmtl Airlock_2
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/Airlock_2_Diffuse.png
+
+newmtl BEAM_Internal.001
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/BEAM_Int_Diffuse.png
+
+newmtl BishopMaterial
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/Bishop_Diffuse.png
+
+newmtl Columbus_Bulkhead
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Columbus_Int_Bulkhead_Diffuse.png
+
+newmtl Columbus_Racks01
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Columbus_Racks01_Diffuse.png
+
+newmtl Columbus_Racks02
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Columbus_Racks02_Diffuse.png
+
+newmtl Columbus_Racks03
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Columbus_Racks03_Diffuse.png
+
+newmtl Cupola_Diffuse
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/Cupola_Int_Diffuse.png
+
+newmtl Cupola_Glass
+Kd 0.7 0.7 0.7
+Ks 0.1 0.1 0.1
+d 0.25
+illum 2
+
+
+newmtl EXPRESS_Racks_ATLAS
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/EXPRESS_Racks_ATLAS_Diffuse.png
+
+newmtl Generic_Hub
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+Kd 0.800000 0.800000 0.800000
+d 1.000000
+illum 2
+
+newmtl Generic_HubAndMetals
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Generic_HubAndMetals_Diffuse.png
+
+newmtl Generic_Lights
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Generic_HubAndMetals_Diffuse.png
+
+newmtl Generic_Metals
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Generic_HubAndMetals_Diffuse.png
+
+newmtl Generic_Misc_Details
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+Kd 0.800000 0.800000 0.800000
+d 1.000000
+illum 2
+
+newmtl Generic_Misc_Details_LIGHTS
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Generic_Misc_Details_Diffuse.png
+
+newmtl JLP_Int_Bulkhead
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/JLP_Int_Bulkhead_Diffuse.png
+
+newmtl JLP_Racks
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/JLP_Racks_Diffuse.png
+
+newmtl JPM_Bulkhead
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/JPM_Bulkhead_Diffuse.png
+
+newmtl JPM_Racks_01
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/JPM_Racks_01_Diffuse.png
+
+newmtl JPM_Racks_02
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/JPM_Racks_02_Diffuse.png
+
+newmtl JPM_Racks_03
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/JPM_Racks_03_Diffuse.png
+
+newmtl NewRacks59_60
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/NewRacks59-60_Diffuse.png
+
+newmtl Node1_Int_Bulkhead
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+Kd 0.800000 0.800000 0.800000
+d 1.000000
+illum 2
+
+newmtl Node1_Int_Rack
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+Kd 0.800000 0.800000 0.800000
+d 1.000000
+illum 2
+
+newmtl Node2_Bulkhead
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/Node2_Int_Bulkhead_Diffuse.png
+
+newmtl Node2_Rack
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Node2_Int_Rack_Diffuse.png
+
+newmtl Node3_Bulkhead
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Node3_Int_Bulkhead_Diffuse.png
+
+newmtl Node3_Int_Rack_01
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Node3_Int_Rack_01_Diffuse.png
+
+newmtl Node3_Int_Rack_02
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Node3_Int_Rack_02_Diffuse.png
+
+newmtl Node3_Int_Rack_WHC
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/Node3_Int_Rack_WHC_Diffuse.png
+
+newmtl PMM_01
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/PMM_01_Diffuse.png
+
+newmtl Patches1
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/Patches1_Diffuse.png
+
+newmtl Patches2
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/Patches2_Diffuse.png
+
+newmtl USLab_AFT_Bulkhead
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/USLab_AFT_Bulkhead_Diffuse.png
+
+newmtl USLab_FWD_Bulkhead
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/USLab_FWD_Bulkhead_Diffuse.png
+
+newmtl USLab_Racks_01
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/USLab_Racks_01_Diffuse.png
+
+newmtl USLab_Racks_02
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/USLab_Racks_02_Diffuse.png
+
+newmtl USLab_Racks_03
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+illum 2
+map_Kd ../../textures/USLab_Racks_03_Diffuse.png
+
+newmtl USLab_Racks_04
+Kd 0.8 0.8 0.8
+Ks 0.1 0.1 0.1
+Ns 50
+d 1.000000
+illum 2
+map_Kd ../../textures/USLab_Racks_04_Diffuse.png

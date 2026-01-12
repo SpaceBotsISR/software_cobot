@@ -4,6 +4,18 @@ from glob import glob
 
 package_name = "cobot_gz"
 
+def _collect_files(base_dir):
+    files = [
+        f for f in glob(os.path.join(base_dir, "**", "*"), recursive=True)
+        if os.path.isfile(f)
+    ]
+    by_dir = {}
+    for path in files:
+        rel_dir = os.path.dirname(path)
+        install_dir = os.path.join("share", package_name, rel_dir)
+        by_dir.setdefault(install_dir, []).append(path)
+    return list(by_dir.items())
+
 setup(
     name=package_name,
     version="0.0.0",
@@ -13,9 +25,7 @@ setup(
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("share", package_name, "launch"), glob("launch/*.launch.py")),
         (os.path.join("share", package_name, "config"), glob("config/*")),
-        (os.path.join("share", package_name, "meshes"), glob("meshes/*")),
-        (os.path.join("share", package_name, "sdf"), glob("sdf/*")),
-    ],
+    ] + _collect_files("meshes") + _collect_files("sdf") + _collect_files("textures"),
     install_requires=["setuptools"],
     zip_safe=True,
     maintainer="space_cobot",
