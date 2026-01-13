@@ -3,9 +3,9 @@
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 
 
@@ -24,13 +24,25 @@ def generate_launch_description() -> LaunchDescription:
         [nav6d_share, "launch", "n6d_planner.launch.py"]
     )
 
+    args = [
+        DeclareLaunchArgument("use_iss_map", default_value="false"),
+        DeclareLaunchArgument("iss_map_file", default_value="iss.bt"),
+    ]
+
     return LaunchDescription(
         [
+            *args,
             IncludeLaunchDescription(
                 PythonLaunchDescriptionSource(cobot_gz_launch),
                 launch_arguments={"vel_input_frame": "world"}.items(),
             ),
-            IncludeLaunchDescription(PythonLaunchDescriptionSource(octomap_launch)),
+            IncludeLaunchDescription(
+                PythonLaunchDescriptionSource(octomap_launch),
+                launch_arguments={
+                    "use_iss_map": LaunchConfiguration("use_iss_map"),
+                    "iss_map_file": LaunchConfiguration("iss_map_file"),
+                }.items(),
+            ),
             Node(
                 package="teleop",
                 executable="teleop_node",

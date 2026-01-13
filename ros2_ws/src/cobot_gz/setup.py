@@ -25,7 +25,8 @@ setup(
         ("share/" + package_name, ["package.xml"]),
         (os.path.join("share", package_name, "launch"), glob("launch/*.launch.py")),
         (os.path.join("share", package_name, "config"), glob("config/*")),
-    ] + _collect_files("meshes") + _collect_files("sdf") + _collect_files("textures"),
+    ] + _collect_files("meshes") + _collect_files("sdf") + _collect_files("textures")
+    + _collect_files("maps"),
     install_requires=["setuptools"],
     zip_safe=True,
     maintainer="space_cobot",
