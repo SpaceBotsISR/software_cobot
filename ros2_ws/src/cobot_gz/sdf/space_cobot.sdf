@@ -48,8 +48,8 @@
             <collision name='collision'>
                 <geometry>
                     <cylinder>
-                        <radius>0.45</radius>
-                        <length>0.12</length>
+                        <radius>0.40</radius>
+                        <length>0.10</length>
                     </cylinder>
                 </geometry>
             </collision>
