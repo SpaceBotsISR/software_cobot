@@ -24,6 +24,8 @@
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <geometry_msgs/msg/twist.hpp>
+#include <nav6d/msg/path_execution_summary.hpp>
+#include <nav6d/msg/path_quality.hpp>
 #include <nav_msgs/msg/path.hpp>
 #include <octomap/OcTree.h>
 #include <octomap/octomap.h>
@@ -177,6 +179,25 @@ pt::ptree path_to_ptree(const nav_msgs::msg::Path& path_msg) {
     return tree;
 }
 
+pt::ptree path_quality_to_ptree(const nav6d::msg::PathQuality& msg) {
+    pt::ptree tree;
+    tree.put("clearance_score", msg.clearance_score);
+    tree.put("narrow_score", msg.narrow_score);
+    tree.put("turn_score", msg.turn_score);
+    tree.put("efficiency_score", msg.efficiency_score);
+    tree.put("heuristic", msg.heuristic);
+    return tree;
+}
+
+pt::ptree execution_summary_to_ptree(const nav6d::msg::PathExecutionSummary& msg) {
+    pt::ptree tree;
+    tree.put("completed", msg.completed);
+    tree.put("planned_length", msg.planned_length);
+    tree.put("executed_length", msg.executed_length);
+    tree.put("rms_tracking_error", msg.rms_tracking_error);
+    return tree;
+}
+
 geometry_msgs::msg::Pose ptree_to_pose(const pt::ptree& pose_tree) {
     const pt::ptree* source = &pose_tree;
     if (auto nested = pose_tree.get_child_optional("pose")) {
@@ -296,6 +317,22 @@ class TeleopNode : public rclcpp::Node {
             "/nav6d/planner/path", 10,
             [this](nav_msgs::msg::Path::ConstSharedPtr msg) { handle_nav6d_path(msg); });
 
+        path_quality_sub_ = create_subscription<nav6d::msg::PathQuality>(
+            "/nav6d/path_quality", 10,
+            [this](nav6d::msg::PathQuality::ConstSharedPtr msg) { handle_path_quality(msg); });
+
+        velocity_summary_sub_ = create_subscription<nav6d::msg::PathExecutionSummary>(
+            "/nav6d/velocity_controller/path_execution_summary", 10,
+            [this](nav6d::msg::PathExecutionSummary::ConstSharedPtr msg) {
+                handle_execution_summary("/nav6d/velocity_controller/path_execution_summary", msg);
+            });
+
+        force_summary_sub_ = create_subscription<nav6d::msg::PathExecutionSummary>(
+            "/nav6d/force_controller/path_execution_summary", 10,
+            [this](nav6d::msg::PathExecutionSummary::ConstSharedPtr msg) {
+                handle_execution_summary("/nav6d/force_controller/path_execution_summary", msg);
+            });
+
         octomap_sub_ = create_subscription<octomap_msgs::msg::Octomap>(
             "/octomap_full", 1,
             [this](octomap_msgs::msg::Octomap::ConstSharedPtr msg) { handle_octomap(msg); });
@@ -399,6 +436,23 @@ class TeleopNode : public rclcpp::Node {
         }
         const auto payload = path_to_ptree(*msg);
         publish_payload("/nav6d/planner/path", payload, false);
+    }
+
+    void handle_path_quality(nav6d::msg::PathQuality::ConstSharedPtr msg) {
+        if (!msg) {
+            return;
+        }
+        const auto payload = path_quality_to_ptree(*msg);
+        publish_payload("/nav6d/path_quality", payload, false);
+    }
+
+    void handle_execution_summary(const std::string& topic,
+                                  nav6d::msg::PathExecutionSummary::ConstSharedPtr msg) {
+        if (!msg) {
+            return;
+        }
+        const auto payload = execution_summary_to_ptree(*msg);
+        publish_payload(topic, payload, false);
     }
 
     void handle_octomap(octomap_msgs::msg::Octomap::ConstSharedPtr msg) {
@@ -670,6 +724,9 @@ class TeleopNode : public rclcpp::Node {
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr imu_sub_;
     rclcpp::Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr pose_sub_;
     rclcpp::Subscription<nav_msgs::msg::Path>::SharedPtr nav_path_sub_;
+    rclcpp::Subscription<nav6d::msg::PathQuality>::SharedPtr path_quality_sub_;
+    rclcpp::Subscription<nav6d::msg::PathExecutionSummary>::SharedPtr velocity_summary_sub_;
+    rclcpp::Subscription<nav6d::msg::PathExecutionSummary>::SharedPtr force_summary_sub_;
     rclcpp::Subscription<octomap_msgs::msg::Octomap>::SharedPtr octomap_sub_;
     rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr image_sub_;
     rclcpp::TimerBase::SharedPtr cmd_timer_;
