@@ -33,7 +33,7 @@ def generate_launch_description():
         remappings=[("cloud_in", "/main_camera/points")],
         parameters=[
             {
-                "resolution": 0.20,
+                "resolution": 0.10,
                 "max_range": 6.0,
                 "frame_id": "world",
                 "use_sim_time": True,
