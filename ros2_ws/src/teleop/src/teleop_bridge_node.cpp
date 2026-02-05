@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <deque>
 #include <memory>
 #include <optional>
 #include <string>
@@ -276,12 +277,16 @@ class TeleopNode : public rclcpp::Node {
         declare_parameter<std::string>("default_input_frame", "body");
         // Teleop inputs are always interpreted in the default frame.
         declare_parameter<bool>("allow_cmd_frame_override", false);
+        declare_parameter<int>("one_way_delay_ms", 1500);
 
         const auto sensor_endpoint = get_parameter("teleop_bridge_sensor_endpoint").as_string();
         const auto image_endpoint = get_parameter("teleop_bridge_image_endpoint").as_string();
         const auto cmd_endpoint = get_parameter("teleop_cmd_endpoint").as_string();
         jpeg_quality_ = get_parameter("jpeg_quality").as_int();
         jpeg_quality_ = std::max(1, std::min(100, jpeg_quality_));
+        const int delay_ms =
+            std::max<int64_t>(0, get_parameter("one_way_delay_ms").as_int());
+        one_way_delay_ = std::chrono::milliseconds(delay_ms);
 
         configure_socket(sensor_pub_, sensor_endpoint, 100);
         configure_socket(image_pub_, image_endpoint, 3);
@@ -326,7 +331,11 @@ class TeleopNode : public rclcpp::Node {
             "/main_camera/image", 10,
             [this](sensor_msgs::msg::Image::ConstSharedPtr msg) { handle_image(msg); });
 
-        cmd_timer_ = create_wall_timer(10ms, [this]() { poll_command_bus(); });
+        cmd_timer_ = create_wall_timer(10ms, [this]() {
+            poll_command_bus();
+            flush_delayed_commands();
+            flush_delayed_payloads();
+        });
         nav_goal_pub_ = create_publisher<geometry_msgs::msg::PoseStamped>("/nav6d/goal", 10);
 
         command_frame_ = get_parameter("command_frame").as_string();
@@ -334,9 +343,9 @@ class TeleopNode : public rclcpp::Node {
         allow_cmd_frame_override_ = false;
 
         RCLCPP_INFO(get_logger(),
-                    "Teleop bridge PUB sensors on %s; images on %s; commands SUB on %s (cmd frame=%s, default input=%s)",
+                    "Teleop bridge PUB sensors on %s; images on %s; commands SUB on %s (cmd frame=%s, default input=%s, one-way delay=%dms)",
                     sensor_endpoint.c_str(), image_endpoint.c_str(), cmd_endpoint.c_str(),
-                    command_frame_.c_str(), default_input_frame_.c_str());
+                    command_frame_.c_str(), default_input_frame_.c_str(), delay_ms);
     }
 
     ~TeleopNode() override {
@@ -371,6 +380,16 @@ class TeleopNode : public rclcpp::Node {
         envelope.add_child("data", payload);
         const auto message = ptree_to_compact_json(envelope);
 
+        if (one_way_delay_.count() <= 0) {
+            send_payload_message(topic, message, is_image);
+            return;
+        }
+        const auto ready_at = std::chrono::steady_clock::now() + one_way_delay_;
+        queued_payloads_.push_back({ready_at, topic, message, is_image});
+    }
+
+    void send_payload_message(const std::string& topic, const std::string& message,
+                              bool is_image) {
         try {
             auto& socket = is_image ? image_pub_ : sensor_pub_;
             zmq::send_flags flags = zmq::send_flags::dontwait;
@@ -378,6 +397,18 @@ class TeleopNode : public rclcpp::Node {
         } catch (const zmq::error_t& e) {
             RCLCPP_WARN(get_logger(), "Failed to publish teleop payload for topic %s: %s",
                         topic.c_str(), e.what());
+        }
+    }
+
+    void flush_delayed_payloads() {
+        if (queued_payloads_.empty()) {
+            return;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        while (!queued_payloads_.empty() && queued_payloads_.front().ready_at <= now) {
+            auto item = std::move(queued_payloads_.front());
+            queued_payloads_.pop_front();
+            send_payload_message(item.topic, item.message, item.is_image);
         }
     }
 
@@ -504,7 +535,24 @@ class TeleopNode : public rclcpp::Node {
             }
 
             const std::string payload(static_cast<const char*>(message.data()), message.size());
-            process_command(payload);
+            if (one_way_delay_.count() <= 0) {
+                process_command(payload);
+                continue;
+            }
+            const auto ready_at = std::chrono::steady_clock::now() + one_way_delay_;
+            queued_commands_.push_back({ready_at, payload});
+        }
+    }
+
+    void flush_delayed_commands() {
+        if (queued_commands_.empty()) {
+            return;
+        }
+        const auto now = std::chrono::steady_clock::now();
+        while (!queued_commands_.empty() && queued_commands_.front().ready_at <= now) {
+            auto item = std::move(queued_commands_.front());
+            queued_commands_.pop_front();
+            process_command(item.payload);
         }
     }
 
@@ -629,6 +677,22 @@ class TeleopNode : public rclcpp::Node {
 
     std::optional<std::chrono::steady_clock::time_point> last_cmd_time_;
     int jpeg_quality_{80};
+    std::chrono::milliseconds one_way_delay_{0};
+
+    struct QueuedPayload {
+        std::chrono::steady_clock::time_point ready_at;
+        std::string topic;
+        std::string message;
+        bool is_image{false};
+    };
+
+    struct QueuedCommand {
+        std::chrono::steady_clock::time_point ready_at;
+        std::string payload;
+    };
+
+    std::deque<QueuedPayload> queued_payloads_;
+    std::deque<QueuedCommand> queued_commands_;
 
     // Frames and TF
     std::string command_frame_;
