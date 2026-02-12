@@ -16,6 +16,7 @@ from sklearn.linear_model import (
 )
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
 
@@ -97,10 +98,31 @@ def get_models(random_state: int = 42) -> dict[str, object]:
                 ("model", SVR(kernel="rbf", C=1.0, epsilon=0.05)),
             ]
         ),
+        "SVR(Linear)": Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("model", SVR(kernel="linear", C=1.0, epsilon=0.05)),
+            ]
+        ),
         "KNN": Pipeline(
             [
                 ("scaler", StandardScaler()),
                 ("model", KNeighborsRegressor(n_neighbors=7, weights="distance")),
+            ]
+        ),
+        "MLP": Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "model",
+                    MLPRegressor(
+                        hidden_layer_sizes=(32, 16),
+                        activation="relu",
+                        alpha=1e-4,
+                        max_iter=2000,
+                        random_state=random_state,
+                    ),
+                ),
             ]
         ),
     }
@@ -131,10 +153,19 @@ def get_param_grids() -> dict[str, dict[str, list[object]]]:
             "model__gamma": ["scale", "auto", 1e-3, 1e-2, 1e-1, 1.0, 10.0],
             "model__epsilon": [1e-4, 5e-4, 1e-3, 5e-3, 0.01, 0.05, 0.1, 0.2, 0.3],
         },
+        "SVR(Linear)": {
+            "model__C": [1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1e3],
+            "model__epsilon": [1e-4, 5e-4, 1e-3, 5e-3, 0.01, 0.05, 0.1, 0.2, 0.3],
+        },
         "KNN": {
             "model__n_neighbors": [1, 3, 5, 7, 9, 11, 15, 21, 31, 45, 61],
             "model__weights": ["uniform", "distance"],
             "model__p": [1, 2, 3],
+        },
+        "MLP": {
+            "model__hidden_layer_sizes": [(16,), (32,), (64,), (32, 16), (64, 32)],
+            "model__alpha": [1e-5, 1e-4, 1e-3, 1e-2],
+            "model__learning_rate_init": [1e-4, 1e-3, 1e-2],
         },
     }
 
