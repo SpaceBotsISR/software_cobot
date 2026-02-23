@@ -179,6 +179,12 @@ pt::ptree path_quality_to_ptree(const nav6d::msg::PathQuality &msg) {
     tree.put("turn_score", msg.turn_score);
     tree.put("efficiency_score", msg.efficiency_score);
     tree.put("heuristic", msg.heuristic);
+    tree.put("min_clearance_m", msg.min_clearance_m);
+    tree.put("narrow_fraction", msg.narrow_fraction);
+    tree.put("max_turn_rad", msg.max_turn_rad);
+    tree.put("path_length_m", msg.path_length_m);
+    tree.put("straight_dist_m", msg.straight_dist_m);
+    tree.put("detour_ratio", msg.detour_ratio);
     return tree;
 }
 

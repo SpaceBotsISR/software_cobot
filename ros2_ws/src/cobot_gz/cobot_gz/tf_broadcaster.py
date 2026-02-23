@@ -107,7 +107,7 @@ class SpaceCobotTfPublisher(Node):
     def _publish_static_transforms(self) -> None:
         transforms = [
             make_static_transform(
-                self._base_frame, self._camera_frame, (0.36, 0.0, 0.13)
+                self._base_frame, self._camera_frame, (0.13, 0.0, 0.13)
             ),
             make_static_transform(
                 self._camera_frame, self._depth_sensor_frame, (0.0, 0.0, 0.0)
