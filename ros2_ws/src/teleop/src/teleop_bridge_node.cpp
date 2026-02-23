@@ -95,6 +95,17 @@ pt::ptree array_to_ptree(const std::array<T, N> &array) {
     return tree;
 }
 
+template <typename T>
+pt::ptree vector_to_ptree(const std::vector<T> &values) {
+    pt::ptree tree;
+    for (const auto &value : values) {
+        pt::ptree child;
+        child.put("", value);
+        tree.push_back(std::make_pair("", child));
+    }
+    return tree;
+}
+
 pt::ptree time_to_ptree(const builtin_interfaces::msg::Time &time_msg) {
     pt::ptree tree;
     tree.put("sec", time_msg.sec);
@@ -185,6 +196,7 @@ pt::ptree path_quality_to_ptree(const nav6d::msg::PathQuality &msg) {
     tree.put("path_length_m", msg.path_length_m);
     tree.put("straight_dist_m", msg.straight_dist_m);
     tree.put("detour_ratio", msg.detour_ratio);
+    tree.add_child("local_risks", vector_to_ptree(msg.local_risks));
     return tree;
 }
 
