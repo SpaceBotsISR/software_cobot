@@ -5,7 +5,7 @@ import pandas as pd
 import os
 import joblib
 
-from sklearn.model_selection import train_test_split, GridSearchCV
+from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, PolynomialFeatures
 from sklearn.linear_model import (
@@ -17,6 +17,7 @@ from sklearn.linear_model import (
 from sklearn.svm import SVR
 from sklearn.neighbors import KNeighborsRegressor
 from sklearn.neural_network import MLPRegressor
+from sklearn.ensemble import HistGradientBoostingRegressor
 from sklearn.metrics import mean_squared_error, r2_score
 
 
@@ -24,7 +25,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 # Success score definition (ground truth y)
 # --------------------------------------------------
 def compute_success_y(
-    df: pd.DataFrame, kc: float = 1.0, kt: float = 10.0, eps: float = 1e-12
+    df: pd.DataFrame, kc: float = 1.0, kt: float = 5.0, eps: float = 1e-12
 ) -> np.ndarray:
     """
     y = (EXE / PLN) * exp(-kc * NRC) * exp(-kt * RMS)
@@ -62,9 +63,10 @@ def get_models(random_state: int = 42) -> dict[str, object]:
                 (
                     "model",
                     ElasticNet(
-                        alpha=1e-2,
+                        alpha=1e-1,
                         l1_ratio=0.3,
-                        max_iter=1000000,
+                        max_iter=200000,
+                        tol=1e-3,
                         random_state=random_state,
                     ),
                 ),
@@ -73,7 +75,7 @@ def get_models(random_state: int = 42) -> dict[str, object]:
         "Lasso": Pipeline(
             [
                 ("scaler", StandardScaler()),
-                ("model", Lasso(alpha=1e-3, max_iter=1000000)),
+                ("model", Lasso(alpha=1e-2, max_iter=200000, tol=1e-3)),
             ]
         ),
         "Huber": Pipeline(
@@ -125,48 +127,13 @@ def get_models(random_state: int = 42) -> dict[str, object]:
                 ),
             ]
         ),
-    }
-
-
-def get_param_grids() -> dict[str, dict[str, list[object]]]:
-    return {
-        "Ridge": {
-            "model__alpha": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1e3],
-        },
-        "ElasticNet": {
-            "model__alpha": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0],
-            "model__l1_ratio": [0.01, 0.05, 0.1, 0.3, 0.6, 0.9, 0.98, 0.995],
-        },
-        "Lasso": {
-            "model__alpha": [1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0],
-        },
-        "Huber": {
-            "model__epsilon": [1.01, 1.05, 1.1, 1.2, 1.35, 1.5, 1.75, 2.0, 2.5],
-            "model__alpha": [1e-7, 1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1],
-        },
-        "PolyRidge(d2)": {
-            "poly__degree": [2, 3, 4, 5],
-            "model__alpha": [1e-6, 1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0],
-        },
-        "SVR(RBF)": {
-            "model__C": [1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1e3],
-            "model__gamma": ["scale", "auto", 1e-3, 1e-2, 1e-1, 1.0, 10.0],
-            "model__epsilon": [1e-4, 5e-4, 1e-3, 5e-3, 0.01, 0.05, 0.1, 0.2, 0.3],
-        },
-        "SVR(Linear)": {
-            "model__C": [1e-3, 1e-2, 1e-1, 1.0, 10.0, 100.0, 1e3],
-            "model__epsilon": [1e-4, 5e-4, 1e-3, 5e-3, 0.01, 0.05, 0.1, 0.2, 0.3],
-        },
-        "KNN": {
-            "model__n_neighbors": [1, 3, 5, 7, 9, 11, 15, 21, 31, 45, 61],
-            "model__weights": ["uniform", "distance"],
-            "model__p": [1, 2, 3],
-        },
-        "MLP": {
-            "model__hidden_layer_sizes": [(16,), (32,), (64,), (32, 16), (64, 32)],
-            "model__alpha": [1e-5, 1e-4, 1e-3, 1e-2],
-            "model__learning_rate_init": [1e-4, 1e-3, 1e-2],
-        },
+        "HistGBR": HistGradientBoostingRegressor(
+            random_state=random_state,
+            max_iter=500,
+            learning_rate=0.05,
+            max_depth=4,
+            min_samples_leaf=8,
+        ),
     }
 
 
@@ -194,6 +161,24 @@ def load_goal_mode(path: str) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=header)
 
 
+def build_feature_matrix(df: pd.DataFrame, eps: float = 1e-12) -> tuple[np.ndarray, list[str]]:
+    base_features = ["CLR", "NAR", "TRN", "EFF"]
+    raw_features = ["MCLR", "NFR", "MTR", "PLN", "STD", "DTR"]
+
+    if "DTR" not in df.columns and "PLN" in df.columns and "STD" in df.columns:
+        dtr = df["PLN"].to_numpy(float) / np.maximum(df["STD"].to_numpy(float), eps)
+        df["DTR"] = dtr
+
+    selected: list[str] = []
+    for name in base_features + raw_features:
+        if name in df.columns:
+            selected.append(name)
+
+    if not selected:
+        raise RuntimeError("No feature columns found.")
+    return df[selected].to_numpy(float), selected
+
+
 # --------------------------------------------------
 # Main
 # --------------------------------------------------
@@ -201,19 +186,19 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("path", help="Path to goal_mode.txt")
     ap.add_argument("--kc", type=float, default=1.0)
-    ap.add_argument("--kt", type=float, default=10.0)
-    ap.add_argument("--jobs", type=int, default=1)
+    ap.add_argument("--kt", type=float, default=5.0)
     args = ap.parse_args()
 
     df = load_goal_mode(args.path)
 
-    required = ["CLR", "NAR", "TRN", "EFF", "PLN", "EXE", "RMS", "NRC"]
+    required = ["PLN", "EXE", "RMS", "NRC"]
     for c in required:
         if c not in df.columns:
             raise RuntimeError(f"Missing column {c}")
 
-    # Inputs (planner metrics)
-    X = df[["CLR", "TRN", "EFF"]].to_numpy(float)
+    # Inputs (normalized + raw metrics when available).
+    X, selected_features = build_feature_matrix(df)
+    print("Using features:", ", ".join(selected_features))
 
     # Target (computed success)
     y = compute_success_y(df, kc=args.kc, kt=args.kt)
@@ -224,39 +209,25 @@ def main() -> None:
     )
 
     models = get_models()
-    grids = get_param_grids()
-    results: dict[str, tuple[object, dict[str, object], float, float]] = {}
+    results: dict[str, tuple[object, float, float]] = {}
 
-    print("\n=== Grid search (CV on train), then test eval ===")
+    print("\n=== Fixed-parameter model fit (train), then test eval ===")
     print(f"kc={args.kc}, kt={args.kt}\n")
 
     for name, model in models.items():
-        grid = grids.get(name, {})
-        search = GridSearchCV(
-            model,
-            grid,
-            scoring="neg_mean_squared_error",
-            cv=5,
-            n_jobs=1,
-            refit=True,
-        )
-        search.fit(Xtr, ytr)
-
-        best_model = search.best_estimator_
-        yhat = np.clip(best_model.predict(Xte), 0.0, 1.0)
+        model.fit(Xtr, ytr)
+        yhat = np.clip(model.predict(Xte), 0.0, 1.0)
 
         mse = mean_squared_error(yte, yhat)
         r2 = r2_score(yte, yhat)
 
-        results[name] = (best_model, search.best_params_, mse, r2)
-        print(
-            f"{name:18s} | MSE = {mse:.6e} | R² = {r2:.4f} | best={search.best_params_}"
-        )
+        results[name] = (model, mse, r2)
+        print(f"{name:18s} | MSE = {mse:.6e} | R² = {r2:.4f}")
 
-    best_name = min(results, key=lambda k: results[k][2])
+    best_name = min(results, key=lambda k: results[k][1])
     best_model = results[best_name][0]
-    best_mse = results[best_name][2]
-    best_r2 = results[best_name][3]
+    best_mse = results[best_name][1]
+    best_r2 = results[best_name][2]
     print(
         f"\nBest model (by MSE): {best_name} | MSE = {best_mse:.6e} | R² = {best_r2:.4f}"
     )
@@ -276,12 +247,11 @@ def main() -> None:
             print(f"Saved coefficients to: {coef_path}")
 
             # Build a readable formula: H = b0 + c1*var1 + ...
-            base_features = ["CLR", "TRN", "EFF"]
             poly = best_model.named_steps.get("poly")
             if poly is not None:
-                feature_names = poly.get_feature_names_out(base_features)
+                feature_names = poly.get_feature_names_out(selected_features)
             else:
-                feature_names = base_features
+                feature_names = selected_features
 
             intercept = getattr(model_step, "intercept_", 0.0)
             terms = [f"{intercept:.6g}"]
